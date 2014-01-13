@@ -1,4 +1,3 @@
-
 -module(wactor_sup).
 
 -behaviour(supervisor).
@@ -24,5 +23,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, []} }.
-
+    %% FIXME: Move to uses app skeleton.
+    Locker = {wactor_locker, {locker, start_link, [1, 1000, 1000, 250]},
+              permanent, 2000, worker, [locker]},
+    {ok, { {one_for_one, 5, 10}, [Locker]} }.

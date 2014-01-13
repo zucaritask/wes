@@ -10,7 +10,10 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    wactor_sup:start_link().
+    Res = wactor_sup:start_link(),
+    ok = locker:set_nodes([node()], [node()], []),
+    ok = locker:set_w([node()], 1),
+    Res.
 
 stop(_State) ->
     ok.
