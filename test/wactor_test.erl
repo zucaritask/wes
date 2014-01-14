@@ -10,7 +10,7 @@ session_test_() ->
 
 test_setup() ->
     wactor_sup:start_link(),
-    wactor_locker:start([node()]).
+    wactor_locker:start([node()], [], 1, 1000, 1000, 100).
 
 test_teardown(_) ->
     ok.
