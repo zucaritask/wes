@@ -59,16 +59,8 @@ register_actor(ChannelName, ActorName, CbMod, InitArgs) ->
 init([ChannelName, Actors]) ->
     io:format("actors ~p~n", [Actors]),
     {ok, #state{name = ChannelName,
-                actors = lists:map(fun(Act) -> init_actor(ChannelName, Act) end,
+                actors = lists:map(fun(Act) -> actor_init(ChannelName, Act) end,
                                    Actors)}}.
-
-init_actor(ChannelName, {ActorName, CbMod, InitArgs}) ->
-    actor_register_name(ActorName, ChannelName),
-    Response = response(CbMod:init(InitArgs)),
-    #actor{name = ActorName,
-           cbmod = CbMod,
-           state_name = Response#actor_response.state_name,
-           state = Response#actor_response.state}.
 
 handle_call({command, Message}, _From,
             #state{actors = Actors} = State) ->
@@ -81,7 +73,7 @@ handle_call({read, ActorName, Message}, _From,
     {reply, Reply, State};
 handle_call({register_actor, ActorName, CbMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName} = State) ->
-    Actor = init_actor(ChannelName, {ActorName, CbMod, InitArgs}),
+    Actor = actor_init(ChannelName, {ActorName, CbMod, InitArgs}),
     NewActors = actor_add(ActorName, Actor, Actors),
     {reply, ok, State#state{actors = NewActors}}.
 
@@ -98,12 +90,12 @@ handle_info(_Info, State) ->
 
 terminate(normal, #state{name = Name, actors = Actors}) ->
     lists:foreach(fun(A0) -> actor_save(A0) end, Actors),
-    lists:foreach(fun(A0) -> actor_deregister_name(A0) end, Actors),
+    lists:foreach(fun(A0) -> actor_deregister_name(A0, Name) end, Actors),
     channel_deregister_name(Name),
     ok;
 terminate(Reason, #state{name = Name, actors = Actors}) ->
     io:format("Reason ~p", [Reason]),
-    lists:foreach(fun(A0) -> actor_deregister_name(A0) end, Actors),
+    lists:foreach(fun(A0) -> actor_deregister_name(A0, Name) end, Actors),
     channel_deregister_name(Name),
     ok.
 
@@ -113,6 +105,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+
+%% ---------------------------------------------------------------------------
+%% Naming of channels / actors
 
 channel_name(ChannelName) ->
     {via, wactor_locker, ChannelName}.
@@ -126,22 +122,23 @@ actor_name_to_channel(ActorName) ->
 actor_register_name(Name, Channel) ->
     ok = wactor_locker:register_actor(Name, Channel).
 
-actor_deregister_name(Name) ->
-    wactor_locker:deregister_actor(Name).
-
-conf(Var) ->
-    conf(Var, undefined).
-
-conf(Var, undefined) ->
-    proplists:get_value(Var, application:get_env(wactor, channel), undefined).
+actor_deregister_name(Name, Channel) ->
+    wactor_locker:unregister_actor(Name, Channel).
 
 %% ---------------------------------------------------------------------------
 %% Actor
 
+actor_init(ChannelName, {ActorName, CbMod, InitArgs}) ->
+    actor_register_name(ActorName, ChannelName),
+    Response = response(CbMod:init(InitArgs)),
+    #actor{name = ActorName,
+           cbmod = CbMod,
+           state_name = Response#actor_response.state_name,
+           state = Response#actor_response.state}.
+
 actor_save(#actor{state_name = StateName, cbmod = CbMod,
                   state = ActorState}) ->
-    CbMod:save(StateName, ActorState),
-    ok.
+    CbMod:save(StateName, ActorState).
 
 actor_add(ActorName, Actor, Actors) ->
     lists:keystore(ActorName, #actor.name, Actors, Actor).
