@@ -5,11 +5,11 @@
 -include("wactor.hrl").
 
 %% API
--export([start/1, start/2,
-         command/2,
-         event/2,
-         read/2,
-         register_actor/4]).
+-export([start/2, start/3,
+         command/3,
+         event/3,
+         read/3,
+         register_actor/5]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -17,6 +17,7 @@
 
 -record(state,
         {name,
+         locker_mod,
          actors = []}).
 
 -record(actor,
@@ -27,40 +28,53 @@
 
 -define(TIMEOUT, 30000).
 
+
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start(ChannelName) ->
-    start(ChannelName, []).
+start(ChannelName, LockerMod) ->
+    start(ChannelName, [], LockerMod).
 
-start(ChannelName, StartActors) ->
-    gen_server:start(channel_name(ChannelName), ?MODULE,
-                     [ChannelName, StartActors], []).
+start(ChannelName, StartActors, LockerMod) ->
+    gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
+                     [ChannelName, StartActors, LockerMod], []).
 
-command(ChannelName, Message) ->
-    gen_server:call(channel_name(ChannelName), {command, Message}).
+command(ChannelName, Message, LockerMod) ->
+    gen_server:call(channel_name(ChannelName, LockerMod), {command, Message}).
 
-event(ChannelName, Message) ->
-    gen_server:cast(channel_name(ChannelName), {event, Message}).
+event(ChannelName, Message, LockerMod) ->
+    gen_server:cast(channel_name(ChannelName, LockerMod), {event, Message}).
 
-read(ActorName, Message) ->
-    gen_server:call(channel_name(actor_name_to_channel(ActorName)),
-                    {read, ActorName, Message}).
+read(ActorName, Message, LockerMod) ->
+    gen_server:call(
+      channel_name(actor_name_to_channel(ActorName, LockerMod), LockerMod),
+      {read, ActorName, Message}).
 
-register_actor(ChannelName, ActorName, CbMod, InitArgs) ->
-    gen_server:call(channel_name(ChannelName),
+register_actor(ChannelName, ActorName, CbMod, InitArgs, LockerMod) ->
+    gen_server:call(channel_name(ChannelName, LockerMod),
                     {register_actor, ActorName, CbMod, InitArgs}).
+
+%% ---------------------------------------------------------------------------
+%% API Helpers
+
+channel_name(ChannelName, LockerMod) ->
+    {via, LockerMod, ChannelName}.
+
+actor_name_to_channel(ActorName, LockerMod) ->
+    LockerMod:channel_for_actor(ActorName).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([ChannelName, Actors]) ->
+init([ChannelName, Actors, LockerMod]) ->
     io:format("actors ~p~n", [Actors]),
     {ok, #state{name = ChannelName,
-                actors = lists:map(fun(Act) -> actor_init(ChannelName, Act) end,
-                                   Actors)}}.
+                locker_mod = LockerMod,
+                actors = lists:map(
+                           fun(Act) -> actor_init(ChannelName, Act, LockerMod) end,
+                           Actors)}}.
 
 handle_call({command, Message}, _From,
             #state{actors = Actors} = State) ->
@@ -72,8 +86,9 @@ handle_call({read, ActorName, Message}, _From,
     Reply = actor_read(Actor, Message),
     {reply, Reply, State};
 handle_call({register_actor, ActorName, CbMod, InitArgs}, _From,
-            #state{actors = Actors, name = ChannelName} = State) ->
-    Actor = actor_init(ChannelName, {ActorName, CbMod, InitArgs}),
+            #state{actors = Actors, name = ChannelName,
+                   locker_mod = LockerMod} = State) ->
+    Actor = actor_init(ChannelName, {ActorName, CbMod, InitArgs}, LockerMod),
     NewActors = actor_add(ActorName, Actor, Actors),
     {reply, ok, State#state{actors = NewActors}}.
 
@@ -88,15 +103,19 @@ handle_info(timeout, State) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(normal, #state{name = Name, actors = Actors}) ->
+terminate(normal, #state{name = Name, actors = Actors,
+                         locker_mod = LockerMod}) ->
     lists:foreach(fun(A0) -> actor_save(A0) end, Actors),
-    lists:foreach(fun(A0) -> actor_deregister_name(A0, Name) end, Actors),
-    channel_deregister_name(Name),
+    lists:foreach(
+      fun(A0) -> actor_deregister_name(A0, Name, LockerMod) end, Actors),
+    channel_deregister_name(Name, LockerMod),
     ok;
-terminate(Reason, #state{name = Name, actors = Actors}) ->
+terminate(Reason, #state{name = Name, actors = Actors,
+                         locker_mod = LockerMod}) ->
     io:format("Reason ~p", [Reason]),
-    lists:foreach(fun(A0) -> actor_deregister_name(A0, Name) end, Actors),
-    channel_deregister_name(Name),
+    lists:foreach(
+      fun(A0) -> actor_deregister_name(A0, Name, LockerMod) end, Actors),
+    channel_deregister_name(Name, LockerMod),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -110,26 +129,20 @@ code_change(_OldVsn, State, _Extra) ->
 %% ---------------------------------------------------------------------------
 %% Naming of channels / actors
 
-channel_name(ChannelName) ->
-    {via, wactor_locker, ChannelName}.
+channel_deregister_name(ChannelName, LockerMod) ->
+    LockerMod:unregister_name(ChannelName).
 
-channel_deregister_name(ChannelName) ->
-    wactor_locker:unregister_name(ChannelName).
+actor_register_name(Name, Channel, LockerMod) ->
+    ok = LockerMod:register_actor(Name, Channel).
 
-actor_name_to_channel(ActorName) ->
-    wactor_locker:channel_for_actor(ActorName).
-
-actor_register_name(Name, Channel) ->
-    ok = wactor_locker:register_actor(Name, Channel).
-
-actor_deregister_name(Name, Channel) ->
-    wactor_locker:unregister_actor(Name, Channel).
+actor_deregister_name(Name, Channel, LockerMod) ->
+    LockerMod:unregister_actor(Name, Channel).
 
 %% ---------------------------------------------------------------------------
 %% Actor
 
-actor_init(ChannelName, {ActorName, CbMod, InitArgs}) ->
-    actor_register_name(ActorName, ChannelName),
+actor_init(ChannelName, {ActorName, CbMod, InitArgs}, LockerMod) ->
+    actor_register_name(ActorName, ChannelName, LockerMod),
     Response = response(CbMod:init(InitArgs)),
     #actor{name = ActorName,
            cbmod = CbMod,

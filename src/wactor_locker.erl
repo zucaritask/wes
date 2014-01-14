@@ -1,5 +1,12 @@
 -module(wactor_locker).
 
+%% API
+-export([start/1, start/2,
+         command/2,
+         event/2,
+         read/2,
+         register_actor/4]).
+
 %% {via, , }  api.
 -export([send/2,
          whereis_name/1,
@@ -10,6 +17,32 @@
 -export([register_actor/2,
          unregister_actor/2,
          channel_for_actor/1]).
+
+%% ---------------------------------------------------------------------------
+%% User API
+
+start(ChannelName) ->
+    wactor_channel:start(ChannelName, ?MODULE).
+
+start(ChannelName, StartActors) ->
+    wactor_channel:start(ChannelName, StartActors, ?MODULE).
+
+command(ChannelName, Message) ->
+    wactor_channel:command(ChannelName, Message, ?MODULE).
+
+event(ChannelName, Message) ->
+    wactor_channel:event(ChannelName, Message, ?MODULE).
+
+read(ActorName, Message) ->
+    wactor_channel:read(ActorName, Message, ?MODULE).
+
+register_actor(ChannelName, ActorName, CbMod, InitArgs) ->
+    wactor_channel:register_actor(
+      ChannelName, ActorName, CbMod, InitArgs, ?MODULE).
+
+
+%% ---------------------------------------------------------------------------
+%% Lib callback
 
 send(Id, Event) ->
     case locker:dirty_read({channel, Id}) of

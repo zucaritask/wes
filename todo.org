@@ -2,8 +2,8 @@
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [ ] Lockers [0/2]
-    - [ ] Make configurable, probably with a wrapper around wactor_channel.
+  - [-] Lockers [1/2]
+    - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [ ] Application should not start locker.
      It is up to the lib user to start and configure the locking service.
   - [ ] Channels [0/1]
