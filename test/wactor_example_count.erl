@@ -1,6 +1,6 @@
 -module(wactor_example_count).
 
--include("wactor.hrl").
+-include("../src/wactor.hrl").
 
 -export([init/1,
          read/2,

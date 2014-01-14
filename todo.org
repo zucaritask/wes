@@ -1,7 +1,7 @@
-* Version 1 [1/6]
-  - [ ] Tools [0/2]
-    - [ ] Makefile
-    - [ ] Unit tests
+* Version 1 [2/6]
+  - [X] Tools [2/2]
+    - [X] Makefile
+    - [X] Unit tests
   - [ ] Lockers [0/2]
     - [ ] Make configurable, probably with a wrapper around wactor_channel.
     - [ ] Application should not start locker.
