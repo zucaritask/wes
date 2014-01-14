@@ -1,0 +1,8 @@
+* Lockers
+  - [ ] Make configurable, probably with a wrapper around wactor_channel.
+
+* Actors
+  - [ ] How should we return from a command.
+    If actor_reponse record use it as that, otherwise its a state.
+
+* 

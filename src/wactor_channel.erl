@@ -9,7 +9,7 @@
          command/2,
          event/2,
          read/2,
-         register_actor/3]).
+         register_actor/4]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -48,9 +48,9 @@ read(ActorName, Message) ->
     gen_server:call(channel_name(actor_name_to_channel(ActorName)),
                     {read, ActorName, Message}).
 
-register_actor(ChannelName, ActorName, CbMod) ->
+register_actor(ChannelName, ActorName, CbMod, InitArgs) ->
     gen_server:call(channel_name(ChannelName),
-                    {register_actor, ActorName, CbMod}).
+                    {register_actor, ActorName, CbMod, InitArgs}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -62,9 +62,9 @@ init([ChannelName, Actors]) ->
                 actors = lists:map(fun(Act) -> init_actor(ChannelName, Act) end,
                                    Actors)}}.
 
-init_actor(ChannelName, {ActorName, CbMod}) ->
-    Response = CbMod:init(),
+init_actor(ChannelName, {ActorName, CbMod, InitArgs}) ->
     actor_register_name(ActorName, ChannelName),
+    Response = response(CbMod:init(InitArgs)),
     #actor{name = ActorName,
            cbmod = CbMod,
            state_name = Response#actor_response.state_name,
@@ -79,9 +79,9 @@ handle_call({read, ActorName, Message}, _From,
     Actor = actor_get(ActorName, Actors),
     Reply = actor_read(Actor, Message),
     {reply, Reply, State};
-handle_call({register_actor, ActorName, CbMod}, _From,
+handle_call({register_actor, ActorName, CbMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName} = State) ->
-    Actor = init_actor(ChannelName, {ActorName, CbMod}),
+    Actor = init_actor(ChannelName, {ActorName, CbMod, InitArgs}),
     NewActors = actor_add(ActorName, Actor, Actors),
     {reply, ok, State#state{actors = NewActors}}.
 
@@ -129,7 +129,6 @@ actor_register_name(Name, Channel) ->
 actor_deregister_name(Name) ->
     wactor_locker:deregister_actor(Name).
 
-
 conf(Var) ->
     conf(Var, undefined).
 
@@ -157,6 +156,9 @@ actor_read(#actor{cbmod = CbMod, state = ActorState}, Message) ->
 actor_act(#actor{state_name = StateName, cbmod = CbMod,
                  state = ActorState} = Actor,
           Message) ->
-    Response = CbMod:command(StateName, Message, ActorState),
+    Response = response(CbMod:command(StateName, Message, ActorState)),
     Actor#actor{state_name = Response#actor_response.state_name,
                 state = Response#actor_response.state}.
+
+response(#actor_response{} = Response) -> Response;
+response(NewState0) -> #actor_response{state = NewState0}.
