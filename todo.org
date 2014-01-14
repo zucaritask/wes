@@ -1,8 +1,24 @@
-* Lockers
-  - [ ] Make configurable, probably with a wrapper around wactor_channel.
+* Version 1 [1/6]
+  - [ ] Tools [0/2]
+    - [ ] Makefile
+    - [ ] Unit tests
+  - [ ] Lockers [0/2]
+    - [ ] Make configurable, probably with a wrapper around wactor_channel.
+    - [ ] Application should not start locker.
+     It is up to the lib user to start and configure the locking service.
+  - [ ] Channels [0/1]
+    - [ ] Introduce a channel type, channels are configured by type.
+  - [X] Actors [1/1]
+    - [X] How should we return from a command.
+      If actor_reponse record use it as that, otherwise its a state.
+  - [ ] Storage [0/2]
+    - [ ] Insert hooks for read and write
+    - [ ] Make storage configurable
+  - [ ] Events [0/2]
+    - [ ] Actors can send events to channels before the current command is over.
+    - [ ] Events to current channel is either async or not sent as a message.
 
-* Actors
-  - [ ] How should we return from a command.
-    If actor_reponse record use it as that, otherwise its a state.
-
-* 
+* Future features
+  - [ ] Channels
+    - [ ] Rate limiting requests / channels of a specific type
+    - [ ] Curcuit breaker for excecuting the commands
