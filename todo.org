@@ -2,11 +2,14 @@
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [-] Process and actor naming [2/3]
+  - [-] Process and actor naming [2/4]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [X] Application should not start locker.
       It is up to the lib user to start and configure the locking servic
     - [ ] Callback for timeout, to refreash the locks.
+    - [ ] Locker [0/2]
+      - [ ] Make primary / read copy configurable
+      - [ ] Make all args to locker start_link/4 configurable.
   - [ ] Channels [0/1]
     - [ ] Introduce a channel type, channels are configured by type.
   - [X] Actors [1/1]
