@@ -1,7 +1,8 @@
 -module(wactor_locker).
 
 %% API
--export([start/1, start/2,
+-export([start/1,
+         start_channel/1, start_channel/2,
          command/2,
          event/2,
          read/2,
@@ -21,10 +22,18 @@
 %% ---------------------------------------------------------------------------
 %% User API
 
-start(ChannelName) ->
+start(Nodes) ->
+    Locker = {wactor_locker, {locker, start_link, [1, 1000, 1000, 250]},
+              permanent, 2000, worker, [locker]},
+    supervisor:start_child(wactor_sup, Locker),
+    ok = locker:set_nodes(Nodes, Nodes, []),
+    ok = locker:set_w(Nodes, (length(Nodes) div 2) + 1).
+
+
+start_channel(ChannelName) ->
     wactor_channel:start(ChannelName, ?MODULE).
 
-start(ChannelName, StartActors) ->
+start_channel(ChannelName, StartActors) ->
     wactor_channel:start(ChannelName, StartActors, ?MODULE).
 
 command(ChannelName, Message) ->

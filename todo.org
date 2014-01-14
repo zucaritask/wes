@@ -1,11 +1,12 @@
-* Version 1 [2/6]
+* Version 1 [2/7]
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [-] Lockers [1/2]
+  - [-] Process and actor naming [2/3]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
-    - [ ] Application should not start locker.
-     It is up to the lib user to start and configure the locking service.
+    - [X] Application should not start locker.
+      It is up to the lib user to start and configure the locking servic
+    - [ ] Callback for timeout, to refreash the locks.
   - [ ] Channels [0/1]
     - [ ] Introduce a channel type, channels are configured by type.
   - [X] Actors [1/1]
@@ -17,6 +18,8 @@
   - [ ] Events [0/2]
     - [ ] Actors can send events to channels before the current command is over.
     - [ ] Events to current channel is either async or not sent as a message.
+  - [ ] Timeout [0/1]
+    - [ ] Which way is more efficient? gen_server timeout or timer:send_after
 
 * Future features
   - [ ] Channels
