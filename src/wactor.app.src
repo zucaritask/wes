@@ -9,6 +9,5 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, { wactor_app, []}},
   {env, []}
  ]}.
