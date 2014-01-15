@@ -84,12 +84,11 @@ register_name(Id, Pid) ->
         {ok, _, _, _} ->
             yes;
         {error, no_quorum} ->
-            io:format("{error, no_quorum} ->"),
             no
     end.
 
 locker_lease_duration() ->
-    10000. %% fixme config.
+    1000 * 60 * 5. %% fixme config.
 
 register_actor(Id, Channel) ->
     case locker:lock({actor, Id}, Channel, locker_lease_duration()) of
