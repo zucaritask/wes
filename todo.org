@@ -1,9 +1,9 @@
-* Version 1 [3/5]
+* Version 1.0 [3/5]
   "Working"
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [-] Process and actor naming [3/4]
+  - [-] Process and actor naming [3/5]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [X] Application should not start locker.
       It is up to the lib user to start and configure the locking service
@@ -11,28 +11,51 @@
     - [X] Locker [2/2]
       - [X] Make primary / read copy configurable
       - [X] Make all args to locker start_link/4 configurable.
+    - [ ] Write module for erlang local registry (for tests).
   - [X] Actors [1/1]
     - [X] How should we return from a command.
       If actor_response record use it as that, otherwise its a state.
-  - [ ] Storage [0/2]
-    - [ ] Insert hooks for read and write
-    - [ ] Make storage configurable
+  - [-] Storage [2/3]
+    - [X] Insert hooks for read and write
+    - [X] Make storage configurable
+    - [ ] Write module for ets (for tests).
   - [X] Timeout [1/1]
     - [X] Which way is more efficient? gen_server timeout or timer:send_after
       gen_server timeout seems to scale better with more cores.
       For a when saturating 3 cores, the difference was not so big.
 
-* Version 1.1 [0/2]
+* Version 1.1 [0/5]
   "Useful"
-  - [ ] Channels [0/1]
+  - [ ] Behaviours and types for callbacks and records [0/3]
+    - [ ] Actor
+    - [ ] Db
+    - [ ] Locker
+    - [ ] Actor response record
+  - [ ] Storage
+    - [ ] Write module for s3
+  - [ ] API
+    - [ ] Should we check if channel is runnig before each command/read?
+  - [ ] Channels [0/2]
     - [ ] Introduce a channel type, channels are configured by type.
+    - [ ] Locker callback and db callback per actor, not per channel type?
+  - [ ] Write a tutorial
+
+* Version 1.2 [0/2]
+  "Advanced features"
+  - [ ] Channels
+    - [ ] Handover of actors between channels
+  - [ ] Actors
+    - [ ] FSM for actors.
   - [ ] Events [0/2]
     - [ ] Actors can send events to channels before the current command is over.
     - [ ] Events to current channel is either sync or not sent as a message.
 
-* Future features
+* Version 1.3 [0/1]
+  "Production ready"
   - [ ] Storage
-    - [ ] Circuit breaker to not overload http lib.
+    - [ ] Circuit breaker to not overload db communication lib when db is slow.
+
+* Future features
   - [ ] Channels
     - [ ] Rate limiting requests / channels of a specific type
     - [ ] Circuit breaker for excecuting the commands
