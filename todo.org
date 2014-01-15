@@ -1,30 +1,38 @@
-* Version 1 [2/7]
+* Version 1 [3/5]
+  "Working"
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
   - [-] Process and actor naming [3/4]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [X] Application should not start locker.
-      It is up to the lib user to start and configure the locking servic
-    - [ ] Callback for timeout, to refreash the locks.
+      It is up to the lib user to start and configure the locking service
+    - [ ] Callback for timeout, to refresh the locks.
     - [X] Locker [2/2]
       - [X] Make primary / read copy configurable
       - [X] Make all args to locker start_link/4 configurable.
-  - [ ] Channels [0/1]
-    - [ ] Introduce a channel type, channels are configured by type.
   - [X] Actors [1/1]
     - [X] How should we return from a command.
-      If actor_reponse record use it as that, otherwise its a state.
+      If actor_response record use it as that, otherwise its a state.
   - [ ] Storage [0/2]
     - [ ] Insert hooks for read and write
     - [ ] Make storage configurable
+  - [X] Timeout [1/1]
+    - [X] Which way is more efficient? gen_server timeout or timer:send_after
+      gen_server timeout seems to scale better with more cores.
+      For a when saturating 3 cores, the difference was not so big.
+
+* Version 1.1 [0/2]
+  "Useful"
+  - [ ] Channels [0/1]
+    - [ ] Introduce a channel type, channels are configured by type.
   - [ ] Events [0/2]
     - [ ] Actors can send events to channels before the current command is over.
-    - [ ] Events to current channel is either async or not sent as a message.
-  - [ ] Timeout [0/1]
-    - [ ] Which way is more efficient? gen_server timeout or timer:send_after
+    - [ ] Events to current channel is either sync or not sent as a message.
 
 * Future features
+  - [ ] Storage
+    - [ ] Circuit breaker to not overload http lib.
   - [ ] Channels
     - [ ] Rate limiting requests / channels of a specific type
-    - [ ] Curcuit breaker for excecuting the commands
+    - [ ] Circuit breaker for excecuting the commands
