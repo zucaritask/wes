@@ -16,6 +16,7 @@ test_teardown(_) ->
     ok.
 
 test_locker() ->
-    {ok, _Pid} = wactor_locker:start_channel(hej, [{act1, wactor_example_count, []}]),
+    Actors = [{act1, wactor_example_count, wactor_db_null, []}],
+    {ok, _Pid} = wactor_locker:start_channel(hej, Actors),
     wactor_locker:command(hej, incr),
     wactor_locker:read(act1, counter).

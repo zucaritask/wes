@@ -6,7 +6,7 @@
          command/2,
          event/2,
          read/2,
-         register_actor/4]).
+         register_actor/5]).
 
 %% {via, , }  api.
 -export([send/2,
@@ -18,6 +18,9 @@
 -export([register_actor/2,
          unregister_actor/2,
          channel_for_actor/1]).
+
+%% Channel callbacks
+-export([timeout/1]).
 
 %% ---------------------------------------------------------------------------
 %% User API
@@ -48,9 +51,9 @@ event(ChannelName, Message) ->
 read(ActorName, Message) ->
     wactor_channel:read(ActorName, Message, ?MODULE).
 
-register_actor(ChannelName, ActorName, CbMod, InitArgs) ->
+register_actor(ChannelName, ActorName, CbMod, DbMod, InitArgs) ->
     wactor_channel:register_actor(
-      ChannelName, ActorName, CbMod, InitArgs, ?MODULE).
+      ChannelName, ActorName, CbMod, DbMod, InitArgs, ?MODULE).
 
 
 %% ---------------------------------------------------------------------------
@@ -106,3 +109,6 @@ channel_for_actor(Id) ->
         {error, not_found} ->
             undefined
     end.
+
+timeout(_) ->
+    ok.

@@ -9,7 +9,7 @@
          command/3,
          event/3,
          read/3,
-         register_actor/5]).
+         register_actor/6]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -22,12 +22,12 @@
 
 -record(actor,
         {name,
-         cbmod,
+         cb_mod,
+         db_mod,
          state,
          state_name = event}).
 
 -define(TIMEOUT, 30000).
-
 
 %%%===================================================================
 %%% API
@@ -51,9 +51,9 @@ read(ActorName, Message, LockerMod) ->
       channel_name(actor_name_to_channel(ActorName, LockerMod), LockerMod),
       {read, ActorName, Message}).
 
-register_actor(ChannelName, ActorName, CbMod, InitArgs, LockerMod) ->
+register_actor(ChannelName, ActorName, CbMod, DbMod, InitArgs, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod),
-                    {register_actor, ActorName, CbMod, InitArgs}).
+                    {register_actor, ActorName, CbMod, DbMod, InitArgs}).
 
 %% ---------------------------------------------------------------------------
 %% API Helpers
@@ -69,12 +69,14 @@ actor_name_to_channel(ActorName, LockerMod) ->
 %%%===================================================================
 
 init([ChannelName, Actors, LockerMod]) ->
-    io:format("actors ~p~n", [Actors]),
+    timer:send_after(10000, timeout),
+    ActorData =
+        lists:map(
+          fun(Act) -> actor_init(ChannelName, Act, LockerMod) end,
+          Actors),
     {ok, #state{name = ChannelName,
                 locker_mod = LockerMod,
-                actors = lists:map(
-                           fun(Act) -> actor_init(ChannelName, Act, LockerMod) end,
-                           Actors)}}.
+                actors = ActorData}}.
 
 handle_call({command, Message}, _From,
             #state{actors = Actors} = State) ->
@@ -85,10 +87,11 @@ handle_call({read, ActorName, Message}, _From,
     Actor = actor_get(ActorName, Actors),
     Reply = actor_read(Actor, Message),
     {reply, Reply, State};
-handle_call({register_actor, ActorName, CbMod, InitArgs}, _From,
+handle_call({register_actor, ActorName, CbMod, DbMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName,
                    locker_mod = LockerMod} = State) ->
-    Actor = actor_init(ChannelName, {ActorName, CbMod, InitArgs}, LockerMod),
+    Actor = actor_init(ChannelName, {ActorName, CbMod, DbMod, InitArgs},
+                       LockerMod),
     NewActors = actor_add(ActorName, Actor, Actors),
     {reply, ok, State#state{actors = NewActors}}.
 
@@ -141,17 +144,25 @@ actor_deregister_name(Name, Channel, LockerMod) ->
 %% ---------------------------------------------------------------------------
 %% Actor
 
-actor_init(ChannelName, {ActorName, CbMod, InitArgs}, LockerMod) ->
+actor_init(ChannelName, {ActorName, ActorCb, DbMod, InitArgs}, LockerMod) ->
+    Response =
+        case DbMod:read(ActorCb:key(ActorName)) of
+            {ok, {_Key, _Value} = Data} ->
+                response(ActorCb:from_struct(Data));
+            not_found ->
+                response(ActorCb:init(InitArgs))
+        end,
     actor_register_name(ActorName, ChannelName, LockerMod),
-    Response = response(CbMod:init(InitArgs)),
     #actor{name = ActorName,
-           cbmod = CbMod,
+           cb_mod = ActorCb,
            state_name = Response#actor_response.state_name,
            state = Response#actor_response.state}.
 
-actor_save(#actor{state_name = StateName, cbmod = CbMod,
-                  state = ActorState}) ->
-    CbMod:save(StateName, ActorState).
+actor_save(#actor{state_name = StateName, cb_mod = CbMod,
+                  name = ActorName,
+                  state = ActorState, db_mod = DbMod}) ->
+    DbMod:write(CbMod:key(ActorName),
+                CbMod:to_struct(StateName, ActorState)).
 
 actor_add(ActorName, Actor, Actors) ->
     lists:keystore(ActorName, #actor.name, Actors, Actor).
@@ -160,10 +171,10 @@ actor_get(ActorName, Actors) ->
     {value, Actor} = lists:keysearch(ActorName, #actor.name, Actors),
     Actor.
 
-actor_read(#actor{cbmod = CbMod, state = ActorState}, Message) ->
+actor_read(#actor{cb_mod = CbMod, state = ActorState}, Message) ->
     CbMod:read(Message, ActorState).
 
-actor_act(#actor{state_name = StateName, cbmod = CbMod,
+actor_act(#actor{state_name = StateName, cb_mod = CbMod,
                  state = ActorState} = Actor,
           Message) ->
     Response = response(CbMod:command(StateName, Message, ActorState)),
