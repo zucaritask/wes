@@ -6,7 +6,7 @@
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [-] Process and actor naming [3/5]
+  - [-] Process and actor naming [4/5]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [X] Application should not start locker.
       It is up to the lib user to start and configure the locking service
@@ -14,7 +14,7 @@
     - [X] Locker [2/2]
       - [X] Make primary / read copy configurable
       - [X] Make all args to locker start_link/4 configurable.
-    - [ ] Write module for erlang local registry (for tests).
+    - [X] Write module for ets.
   - [X] Channels [2/2]
     - [X] Stop channel
     - [X] db callback per actor.
@@ -30,10 +30,12 @@
       gen_server timeout seems to scale better with more cores.
       For a when saturating 3 cores, the difference was not so big.
 
-* Version 1.1 [0/5]
+* Version 1.1 [0/6]
   The lib should be _useful when prototyping_.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
+  - [ ] Benchmark lib to make sure the ideas work.
+    - [ ] Can we introduce channel types to make the api easier?
   - [ ] Behaviours and types for callbacks and records [0/4]
     - [ ] Actor
     - [ ] Db
@@ -46,7 +48,9 @@
   - [ ] Channels [0/2]
     - [ ] Introduce a channel type, channels are configured by type.
     - [ ] Actor locker callback per actor, not per channel type
-  - [ ] Write a tutorial
+  - [ ] Documentation
+    - [ ] Write a HOWTO
+    - [ ] Make a rebar skeleton
 
 * Version 1.2 [0/2]
   The lib contains _advanced features_ needed in GXios.
