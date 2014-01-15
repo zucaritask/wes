@@ -7,7 +7,8 @@
 
 %% Wactor db callback interface.
 -export([read/1,
-         write/2]).
+         write/2,
+         clear/0]).
 
 
 %% gen_server callbacks
@@ -35,6 +36,9 @@ read(Key) ->
 
 write(Key, Value) ->
     ets:insert(?MODULE, {Key, Value}).
+
+clear() ->
+    ets:delete_all_objects(?MODULE).
 
 %%%===================================================================
 %%% gen_server callbacks
