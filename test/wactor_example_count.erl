@@ -19,7 +19,7 @@ command(_StateName, incr, ActorState) ->
     ActorState+1.
 
 key(Actorname) ->
-    atom_to_binary(Actorname, utf8).
+    <<"example_counter", (atom_to_binary(Actorname, utf8))/binary>>.
 
 to_struct(_Actorname, ActorState) ->
     integer_to_binary(ActorState).

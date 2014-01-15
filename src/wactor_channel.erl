@@ -6,6 +6,7 @@
 
 %% API
 -export([start/2, start/3,
+         stop/2,
          command/3,
          event/3,
          read/3,
@@ -40,6 +41,9 @@ start(ChannelName, StartActors, LockerMod) ->
     gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
                      [ChannelName, StartActors, LockerMod], []).
 
+stop(ChannelName, LockerMod) ->
+    gen_server:call(channel_name(ChannelName, LockerMod), stop).
+
 command(ChannelName, Message, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod), {command, Message}).
 
@@ -70,10 +74,7 @@ actor_name_to_channel(ActorName, LockerMod) ->
 
 init([ChannelName, Actors, LockerMod]) ->
     timer:send_after(10000, timeout),
-    ActorData =
-        lists:map(
-          fun(Act) -> actor_init(ChannelName, Act, LockerMod) end,
-          Actors),
+    ActorData = [actor_init(ChannelName, Act, LockerMod) || Act <- Actors],
     {ok, #state{name = ChannelName,
                 locker_mod = LockerMod,
                 actors = ActorData}}.
@@ -93,7 +94,9 @@ handle_call({register_actor, ActorName, CbMod, DbMod, InitArgs}, _From,
     Actor = actor_init(ChannelName, {ActorName, CbMod, DbMod, InitArgs},
                        LockerMod),
     NewActors = actor_add(ActorName, Actor, Actors),
-    {reply, ok, State#state{actors = NewActors}}.
+    {reply, ok, State#state{actors = NewActors}};
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State}.
 
 handle_cast({event, Event}, #state{actors = Actors} = State) ->
     NewActors = lists:map(fun(A0) -> actor_act(A0, Event) end, Actors),
@@ -110,14 +113,16 @@ terminate(normal, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
     lists:foreach(fun(A0) -> actor_save(A0) end, Actors),
     lists:foreach(
-      fun(A0) -> actor_deregister_name(A0, Name, LockerMod) end, Actors),
+      fun(A0) -> actor_deregister_name(A0#actor.name, Name, LockerMod) end,
+      Actors),
     channel_deregister_name(Name, LockerMod),
     ok;
 terminate(Reason, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
     io:format("Reason ~p", [Reason]),
     lists:foreach(
-      fun(A0) -> actor_deregister_name(A0, Name, LockerMod) end, Actors),
+      fun(A0) -> actor_deregister_name(A0#actor.name, Name, LockerMod) end,
+      Actors),
     channel_deregister_name(Name, LockerMod),
     ok.
 
@@ -155,6 +160,7 @@ actor_init(ChannelName, {ActorName, ActorCb, DbMod, InitArgs}, LockerMod) ->
     actor_register_name(ActorName, ChannelName, LockerMod),
     #actor{name = ActorName,
            cb_mod = ActorCb,
+           db_mod = DbMod,
            state_name = Response#actor_response.state_name,
            state = Response#actor_response.state}.
 

@@ -3,6 +3,7 @@
 %% API
 -export([start/6,
          start_channel/1, start_channel/2,
+         stop/1,
          command/2,
          event/2,
          read/2,
@@ -35,6 +36,8 @@ start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
     supervisor:start_child(wactor_sup, Locker),
     ok = locker:set_nodes(PrimaryNodes, PrimaryNodes, Replicas).
 
+stop(ChannelName) ->
+    wactor_channel:stop(ChannelName, ?MODULE).
 
 start_channel(ChannelName) ->
     wactor_channel:start(ChannelName, ?MODULE).
@@ -91,6 +94,7 @@ locker_lease_duration() ->
     1000 * 60 * 5. %% fixme config.
 
 register_actor(Id, Channel) ->
+    error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
     case locker:lock({actor, Id}, Channel, locker_lease_duration()) of
         {ok, _, _, _} ->
             ok;
@@ -99,6 +103,7 @@ register_actor(Id, Channel) ->
     end.
 
 unregister_actor(Id, Channel) ->
+    error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),
     {ok, _, _, _} = locker:release({actor, Id}, Channel).
 
 channel_for_actor(Id) ->

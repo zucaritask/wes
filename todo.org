@@ -1,5 +1,8 @@
-* Version 1.0 [3/5]
-  "Working"
+* Version 1.0 [5/6]
+  The lib is _working_ and is performing all the major tasks.
+  The api might be clunky, it might be hard to write own
+  callbacks for process registors and db modules.
+  NOTE: Some features implemented in this version wasn't added here.
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
@@ -12,21 +15,26 @@
       - [X] Make primary / read copy configurable
       - [X] Make all args to locker start_link/4 configurable.
     - [ ] Write module for erlang local registry (for tests).
+  - [X] Channels [2/2]
+    - [X] Stop channel
+    - [X] db callback per actor.
   - [X] Actors [1/1]
     - [X] How should we return from a command.
       If actor_response record use it as that, otherwise its a state.
-  - [-] Storage [2/3]
+  - [X] Storage [3/3]
     - [X] Insert hooks for read and write
     - [X] Make storage configurable
-    - [ ] Write module for ets (for tests).
+    - [X] Write module for ets (for tests).
   - [X] Timeout [1/1]
     - [X] Which way is more efficient? gen_server timeout or timer:send_after
       gen_server timeout seems to scale better with more cores.
       For a when saturating 3 cores, the difference was not so big.
 
 * Version 1.1 [0/5]
-  "Useful"
-  - [ ] Behaviours and types for callbacks and records [0/3]
+  The lib should be _useful when prototyping_.
+  It should be easy to write own callbaks.
+  The api should be stable and should make sence.
+  - [ ] Behaviours and types for callbacks and records [0/4]
     - [ ] Actor
     - [ ] Db
     - [ ] Locker
@@ -37,11 +45,11 @@
     - [ ] Should we check if channel is runnig before each command/read?
   - [ ] Channels [0/2]
     - [ ] Introduce a channel type, channels are configured by type.
-    - [ ] Locker callback and db callback per actor, not per channel type?
+    - [ ] Actor locker callback per actor, not per channel type
   - [ ] Write a tutorial
 
 * Version 1.2 [0/2]
-  "Advanced features"
+  The lib contains _advanced features_ needed in GXios.
   - [ ] Channels
     - [ ] Handover of actors between channels
   - [ ] Actors
@@ -51,11 +59,13 @@
     - [ ] Events to current channel is either sync or not sent as a message.
 
 * Version 1.3 [0/1]
-  "Production ready"
+  The lib should be able to run is a _production ready_ system.
   - [ ] Storage
     - [ ] Circuit breaker to not overload db communication lib when db is slow.
 
 * Future features
+  This is ideas that seems far fetched now, but might be good to have in the
+  back of the head.
   - [ ] Channels
     - [ ] Rate limiting requests / channels of a specific type
     - [ ] Circuit breaker for excecuting the commands
