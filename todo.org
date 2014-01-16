@@ -1,4 +1,4 @@
-* Version 1.0 [5/6]
+* Version 1.0 [6/6]
   The lib is _working_ and is performing all the major tasks.
   The api might be clunky, it might be hard to write own
   callbacks for process registors and db modules.
@@ -6,11 +6,11 @@
   - [X] Tools [2/2]
     - [X] Makefile
     - [X] Unit tests
-  - [-] Process and actor naming [4/5]
+  - [X] Process and actor naming [5/5]
     - [X] Make configurable, probably with a wrapper around wactor_channel.
     - [X] Application should not start locker.
       It is up to the lib user to start and configure the locking service
-    - [ ] Callback for timeout, to refresh the locks.
+    - [X] Callback for timeout, to refresh the locks.
     - [X] Locker [2/2]
       - [X] Make primary / read copy configurable
       - [X] Make all args to locker start_link/4 configurable.
@@ -30,7 +30,7 @@
       gen_server timeout seems to scale better with more cores.
       For a when saturating 3 cores, the difference was not so big.
 
-* Version 1.1 [0/6]
+* Version 1.1 [0/7]
   The lib should be _useful when prototyping_.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
@@ -42,7 +42,7 @@
     - [ ] Locker
     - [ ] Actor response record
   - [ ] Storage
-    - [ ] Write module for s3
+    - [ ] Write module for s3, in separate app.
   - [ ] API
     - [ ] Should we check if channel is runnig before each command/read?
   - [ ] Channels [0/2]
@@ -51,6 +51,9 @@
   - [ ] Documentation
     - [ ] Write a HOWTO
     - [ ] Make a rebar skeleton
+  - [ ] Cleanup
+    - [ ] Move everything locker to a separate app.
+    - [ ] Move actor code from _channel.erl to _actor.erl
 
 * Version 1.2 [0/2]
   The lib contains _advanced features_ needed in GXios.
