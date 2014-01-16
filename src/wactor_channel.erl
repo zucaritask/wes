@@ -10,6 +10,7 @@
          command/3,
          event/3,
          read/3,
+         status/2,
          register_actor/6]).
 
 %% gen_server callbacks
@@ -37,11 +38,17 @@ start(ChannelName, LockerMod, LockTimeout) ->
     start(ChannelName, [], LockerMod, LockTimeout).
 
 start(ChannelName, StartActors, LockerMod, LockTimeout) ->
-    gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
+    gen_server:start_link(channel_name(ChannelName, LockerMod), ?MODULE,
                      [ChannelName, StartActors, LockerMod, LockTimeout], []).
 
 stop(ChannelName, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod), stop).
+
+status(ChannelName, LockerMod) ->
+    case LockerMod:whereis_name(ChannelName) of
+        undefined -> {error, not_found};
+        Pid when is_pid(Pid) -> {ok, Pid}
+    end.
 
 command(ChannelName, Message, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod), {command, Message}).
@@ -80,9 +87,30 @@ init([ChannelName, Actors, LockerMod, LockTimeout]) ->
                 actors = ActorData}}.
 
 handle_call({command, Message}, _From,
+            #state{name = Name, actors = []} = State) ->
+    error_logger:error_msg("Channel has no actors ~p got command ~p",
+                           [Name, Message]),
+    {reply, ok, State};
+handle_call({command, Message}, _From,
             #state{actors = Actors} = State) ->
-    NewActors = lists:map(fun(A0) -> actor_act(A0, Message) end, Actors),
-    {reply, ok, State#state{actors = NewActors}};
+    try
+        {NewActors, ShouldStop} =
+            lists:mapfoldl(
+              fun(A0, Stop) ->
+                      {Actor, AStop} = actor_act(A0, Message),
+                      {Actor, Stop or AStop}
+              end,
+              false,
+              Actors),
+        if ShouldStop ->
+                error_logger:info_msg("stop command~p", [Message]),
+                {stop, normal, ok, State#state{actors = NewActors}};
+           true ->
+                {reply, ok, State#state{actors = NewActors}}
+        end
+    catch throw:Reason ->
+            {stop, normal, {error, Reason}, State}
+    end;
 handle_call({read, ActorName, Message}, _From,
             #state{actors = Actors} = State) ->
     Actor = actor_get(ActorName, Actors),
@@ -91,16 +119,43 @@ handle_call({read, ActorName, Message}, _From,
 handle_call({register_actor, ActorName, CbMod, DbMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName,
                    locker_mod = LockerMod} = State) ->
-    Actor = actor_init(ChannelName, {ActorName, CbMod, DbMod, InitArgs},
-                       LockerMod),
-    NewActors = actor_add(ActorName, Actor, Actors),
-    {reply, ok, State#state{actors = NewActors}};
+    try
+        case actor_init(ChannelName, {ActorName, CbMod, DbMod, InitArgs},
+                        LockerMod) of
+            {ok, Actor} ->
+                NewActors = actor_add(ActorName, Actor, Actors),
+                {reply, ok, State#state{actors = NewActors}};
+            {stop, Actor} ->
+                NewActors = actor_add(ActorName, Actor, Actors),
+                {stop, normal, ok, State#state{actors = NewActors}}
+        end
+    catch throw:Reason ->
+            error_logger:info_msg("Error ~p", [Reason]),
+            {stop, normal, {error, Reason}, State}
+    end;
 handle_call(stop, _From, State) ->
+    error_logger:info_msg("Stopp command", []),
     {stop, normal, ok, State}.
 
 handle_cast({event, Event}, #state{actors = Actors} = State) ->
-    NewActors = lists:map(fun(A0) -> actor_act(A0, Event) end, Actors),
-    {noreply, State#state{actors = NewActors}};
+    try
+        {NewActors, ShouldStop} =
+            lists:mapfoldl(
+              fun(A0, Stop) ->
+                      {Actor, AStop} = actor_act(A0, Event),
+                      {Actor, Stop or AStop}
+              end,
+              false,
+              Actors),
+        if ShouldStop ->
+                {noreply, State#state{actors = NewActors}};
+           true ->
+                {stop, normal, State#state{actors = NewActors}}
+        end
+    catch throw:_Reason ->
+            error_logger:info_msg("Error ~p", [_Reason]),
+            {stop, normal, State}
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -126,7 +181,7 @@ terminate(normal, #state{name = Name, actors = Actors,
     ok;
 terminate(Reason, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
-    io:format("Reason ~p", [Reason]),
+    error_logger:error_msg("Reason ~p", [Reason]),
     lists:foreach(
       fun(A0) -> actor_deregister_name(A0#actor.name, Name, LockerMod) end,
       Actors),
@@ -197,8 +252,11 @@ actor_act(#actor{state_name = StateName, cb_mod = CbMod,
                  state = ActorState} = Actor,
           Message) ->
     Response = response(CbMod:command(StateName, Message, ActorState)),
-    Actor#actor{state_name = Response#actor_response.state_name,
-                state = Response#actor_response.state}.
+    {Actor#actor{state_name = Response#actor_response.state_name,
+                 state = Response#actor_response.state},
+     Response#actor_response.stop_after}.
 
 response(#actor_response{} = Response) -> Response;
-response(NewState0) -> #actor_response{state = NewState0}.
+response({stop, NewState}) ->
+    #actor_response{state = NewState, stop_after = true};
+response({ok, NewState}) -> #actor_response{state = NewState}.

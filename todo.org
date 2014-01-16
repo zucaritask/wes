@@ -30,7 +30,16 @@
       gen_server timeout seems to scale better with more cores.
       For a when saturating 3 cores, the difference was not so big.
 
-* Version 0.2 [0/7]
+* Version 0.1.1 [2/2]
+  Adding things I forgot in v0.1
+  - [X] Actors
+    - [X] An actor should be able to stop a channel.
+    - [X] An actor can reject a command.
+      This stops the channel and genrates a error message to the caller.
+  - [X] Channels
+    - [X] Command to a channel without actors should generate a error log.
+
+* Version 0.2 [0/8]
   The lib should be _useful when prototyping_.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
@@ -58,6 +67,8 @@
   - [ ] Cleanup
     - [ ] Move everything locker to a separate app.
     - [ ] Move actor code from _channel.erl to _actor.erl
+  - [ ] Monitoring
+    - [ ] ... lots to do.
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.
@@ -78,5 +89,7 @@
   This is ideas that seems far fetched now, but might be good to have in the
   back of the head.
   - [ ] Channels
+    - [ ] Forward events from one channel to anthoer.
+      Native or as a actor that send the event along.
     - [ ] Rate limiting requests / channels of a specific type
     - [ ] Circuit breaker for excecuting the commands

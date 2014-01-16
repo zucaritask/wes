@@ -5,6 +5,7 @@
          start_link/1,
          start_channel/2, start_channel/3,
          stop/1,
+         status/1,
          command/2,
          event/2,
          read/2,
@@ -37,6 +38,9 @@ start_link(Timeout) ->
 
 stop(ChannelName) ->
     wactor_channel:stop(ChannelName, ?MODULE).
+
+status(ChannelName) ->
+    wactor_channel:status(ChannelName, ?MODULE).
 
 start_channel(ChannelName, Timeout) ->
     wactor_channel:start(ChannelName, ?MODULE, Timeout).

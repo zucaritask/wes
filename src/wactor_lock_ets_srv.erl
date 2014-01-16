@@ -22,7 +22,7 @@
 %%%===================================================================
 
 start_link(Timeout) ->
-    error_logger:info_msg("STarting ~p", [Timeout]),
+    error_logger:info_msg("Starting ~p", [Timeout]),
     gen_server:start_link({local, ?SERVER}, ?MODULE, [Timeout], []).
 
 read(Id) ->
