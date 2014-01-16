@@ -18,5 +18,5 @@ do(N, M, Sleep) ->
 
 do_do(_, 0) -> ok;
 do_do(N, M) ->
-    wactor_locker:start_channel({N, M}),
+    wactor_locker:start_channel({N, M}, 1000),
     do_do(N, M-1).

@@ -2,11 +2,12 @@
 
 %% API
 -export([start/6,
-         start_channel/1, start_channel/2,
+         start_channel/2, start_channel/3,
          stop/1,
          command/2,
          event/2,
          read/2,
+         channel_timeout/1,
          register_actor/5]).
 
 %% {via, , }  api.
@@ -17,11 +18,9 @@
 
 %% Actor stuff
 -export([register_actor/2,
+         actor_timeout/2,
          unregister_actor/2,
          channel_for_actor/1]).
-
-%% Channel callbacks
--export([timeout/1]).
 
 %% ---------------------------------------------------------------------------
 %% User API
@@ -39,11 +38,11 @@ start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
 stop(ChannelName) ->
     wactor_channel:stop(ChannelName, ?MODULE).
 
-start_channel(ChannelName) ->
-    wactor_channel:start(ChannelName, ?MODULE).
+start_channel(ChannelName, Timeout) ->
+    wactor_channel:start(ChannelName, ?MODULE, Timeout).
 
-start_channel(ChannelName, StartActors) ->
-    wactor_channel:start(ChannelName, StartActors, ?MODULE).
+start_channel(ChannelName, StartActors, Timeout) ->
+    wactor_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
 
 command(ChannelName, Message) ->
     wactor_channel:command(ChannelName, Message, ?MODULE).
@@ -114,5 +113,8 @@ channel_for_actor(Id) ->
             undefined
     end.
 
-timeout(_) ->
-    ok.
+actor_timeout(Name, Channel) ->
+    locker:extend_lease(Name, Channel, locker_lease_duration()).
+
+channel_timeout(Channel) ->
+    locker:extend_lease(Channel, self(), locker_lease_duration()).

@@ -3,10 +3,11 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0,
+-export([start_link/1,
          read/1,
          lock/2,
-         release/2]).
+         release/2,
+         extend_lease/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -14,14 +15,15 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {tab}).
+-record(state, {tab, timeout}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Timeout) ->
+    error_logger:info_msg("STarting ~p", [Timeout]),
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Timeout], []).
 
 read(Id) ->
     gen_server:call(?SERVER, {read, Id}).
@@ -32,39 +34,66 @@ lock(Id, Value) ->
 release(Id, Value) ->
     gen_server:call(?SERVER, {release, Id, Value}).
 
+extend_lease(Id, Value) ->
+    gen_server:call(?SERVER, {extend_lease, Id, Value}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([]) ->
-    {ok, #state{tab = ets:new(?MODULE, [])}}.
+init([Timeout]) ->
+    {ok, #state{
+            timeout = Timeout,
+            tab = ets:new(?MODULE, [named_table])}}.
 
 handle_call({read, Id}, _From, #state{tab = Tab} = State) ->
+    Now = now_seconds(),
     Reply =
         case ets:lookup(Tab, Id) of
-            [{Id, Value}] ->
+            [{Id, Value, Timeout}] when Now =< Timeout ->
+                {ok, Value};
+            [{Id, Value, _}] ->
                 {ok, Value};
             [] ->
                 {error, not_found}
         end,
     {reply, Reply, State};
-handle_call({lock, Id, Value}, _From, #state{tab = Tab} = State) ->
+handle_call({lock, Id, Value}, _From,
+            #state{tab = Tab, timeout = Timeout} = State) ->
     Reply =
         case ets:lookup(Tab, Id) of
-            [{Id, _}] ->
+            [{Id, _, _}] ->
                 {error, already_locked};
             [] ->
-                ets:insert(Tab, [{Id, Value}]),
+                ets:insert(Tab, [{Id, Value, Timeout + now_seconds()}]),
                 ok
         end,
     {reply, Reply, State};
 handle_call({release, Id, Value}, _From, #state{tab = Tab} = State) ->
+    Now = now_seconds(),
     Reply =
         case ets:lookup(Tab, Id) of
-            [{Id, Value}] ->
+            [{Id, Value, Timeout}] when Now =< Timeout ->
                 ets:delete(Tab, Id),
                 ok;
-            [{Id, OtherValue}] ->
+            [{Id, Value, Timeout}] ->
+                {error, {locked_timeout, Now, Timeout}};
+            [{Id, OtherValue, _Timeout}] ->
+                {error, {locked_with_other_value, OtherValue}};
+            [] ->
+                {error, no_such_lock}
+        end,
+    {reply, Reply, State};
+handle_call({extend_lease, Id, Value}, _From, #state{tab = Tab} = State) ->
+    Now = now_seconds(),
+    Reply =
+        case ets:lookup(Tab, Id) of
+            [{Id, Value, Timeout}] when Now =< Timeout ->
+                ets:insert(Tab, [{Id, Value, Timeout + now_seconds()}]),
+                ok;
+            [{Id, Value, _Timeout}] ->
+                {error, prev_lock_timeout};
+            [{Id, OtherValue, _Timeout}] ->
                 {error, {locked_with_other_value, OtherValue}};
             [] ->
                 {error, no_such_lock}
@@ -86,3 +115,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+now_seconds() ->
+    {Mega, Secs, _} = now(),
+    Mega * 1000000 + Secs.

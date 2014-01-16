@@ -5,7 +5,7 @@
 -include("wactor.hrl").
 
 %% API
--export([start/2, start/3,
+-export([start/3, start/4,
          stop/2,
          command/3,
          event/3,
@@ -19,6 +19,7 @@
 -record(state,
         {name,
          locker_mod,
+         lock_timeout_interval,
          actors = []}).
 
 -record(actor,
@@ -28,18 +29,16 @@
          state,
          state_name = event}).
 
--define(TIMEOUT, 30000).
-
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start(ChannelName, LockerMod) ->
-    start(ChannelName, [], LockerMod).
+start(ChannelName, LockerMod, LockTimeout) ->
+    start(ChannelName, [], LockerMod, LockTimeout).
 
-start(ChannelName, StartActors, LockerMod) ->
+start(ChannelName, StartActors, LockerMod, LockTimeout) ->
     gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
-                     [ChannelName, StartActors, LockerMod], []).
+                     [ChannelName, StartActors, LockerMod, LockTimeout], []).
 
 stop(ChannelName, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod), stop).
@@ -72,10 +71,11 @@ actor_name_to_channel(ActorName, LockerMod) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([ChannelName, Actors, LockerMod]) ->
-    timer:send_after(10000, timeout),
+init([ChannelName, Actors, LockerMod, LockTimeout]) ->
+    timer:send_after(LockTimeout, lock_timeout),
     ActorData = [actor_init(ChannelName, Act, LockerMod) || Act <- Actors],
     {ok, #state{name = ChannelName,
+                lock_timeout_interval = LockTimeout,
                 locker_mod = LockerMod,
                 actors = ActorData}}.
 
@@ -104,8 +104,15 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(timeout, State) ->
-    {stop, normal, State};
+handle_info(lock_timeout, #state{name = Name, actors = Actors,
+                                 lock_timeout_interval = Timeout,
+                                 locker_mod = LockerMod} = State) ->
+    channel_lock_timeout(Name, LockerMod),
+    lists:foreach(
+      fun(A0) -> actor_lock_timeout(A0#actor.name, Name, LockerMod) end,
+      Actors),
+    timer:send_after(Timeout, lock_timeout),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -140,11 +147,17 @@ code_change(_OldVsn, State, _Extra) ->
 channel_deregister_name(ChannelName, LockerMod) ->
     LockerMod:unregister_name(ChannelName).
 
+channel_lock_timeout(Channel, LockerMod) ->
+    LockerMod:channel_timeout(Channel).
+
 actor_register_name(Name, Channel, LockerMod) ->
     ok = LockerMod:register_actor(Name, Channel).
 
 actor_deregister_name(Name, Channel, LockerMod) ->
     LockerMod:unregister_actor(Name, Channel).
+
+actor_lock_timeout(Name, Channel, LockerMod) ->
+    LockerMod:actor_timeout(Name, Channel).
 
 %% ---------------------------------------------------------------------------
 %% Actor
