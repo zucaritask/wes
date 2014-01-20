@@ -115,15 +115,10 @@ handle_call({read, ActorName, Message}, _From,
 handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName} = State) ->
     try
-        case wes_actor:init(ChannelName, {ActorName, CbMod, DbMod, LockerMod,
-                                      InitArgs}) of
-            {ok, Actor} ->
-                NewActors = wes_actor:list_add(ActorName, Actor, Actors),
-                {reply, ok, State#state{actors = NewActors}};
-            {stop, Actor} ->
-                NewActors = wes_actor:list_add(ActorName, Actor, Actors),
-                {stop, normal, ok, State#state{actors = NewActors}}
-        end
+        Actor = wes_actor:init(ChannelName, {ActorName, CbMod, DbMod, LockerMod,
+                                             InitArgs}),
+        NewActors = wes_actor:list_add(ActorName, Actor, Actors),
+        {reply, ok, State#state{actors = NewActors}}
     catch throw:Reason ->
             error_logger:info_msg("Error ~p", [Reason]),
             {stop, normal, {error, Reason}, State}

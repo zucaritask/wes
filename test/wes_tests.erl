@@ -10,7 +10,8 @@ db_test_() ->
        fun test_ets/0,
        fun test_locker_restart/0,
        fun test_stop/0,
-       fun test_bad_command/0]}].
+       fun test_bad_command/0,
+       fun test_add_actor/0]}].
 
 test_setup() ->
     wes_sup:start_link().
@@ -88,3 +89,15 @@ test_bad_command() ->
     {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000),
     ok = wes_lock_ets:command(Channel, incr),
     ok = wes_lock_ets:command(Channel, {incr, -0}).
+
+test_add_actor() ->
+    Channel = hej5,
+    Actor = act5,
+    wes_db_ets:start_link(),
+    wes_db_ets:clear(),
+    wes_lock_ets:start(1000),
+    {ok, _Pid} = wes_lock_ets:start_channel(Channel, [], 2000),
+    wes_lock_ets:register_actor(Channel, Actor, wes_example_count,
+                                wes_db_null, wes_lock_ets, []),
+    ok = wes_lock_ets:command(Channel, incr),
+    ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)).
