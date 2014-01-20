@@ -12,12 +12,12 @@
 
 next(Timeouts) ->
     dict:fold(fun(Name, {NextTimeout, _}, {NameAcc, TimeoutAcc}) ->
-                      if TimeoutAcc == infinite -> {Name, NextTimeout};
+                      if TimeoutAcc == infinity -> {Name, NextTimeout};
                          TimeoutAcc =< NextTimeout -> {NameAcc, TimeoutAcc};
                          true -> {Name, NextTimeout}
                       end
               end,
-              {bogus, infinite},
+              {bogus, infinity},
               Timeouts).
 
 reset(Name, Now, Timeouts) ->
@@ -38,5 +38,5 @@ now() ->
     {MegaSecs, Secs, _} = os:timestamp(),
     MegaSecs * 1000000 + Secs.
 
-time_diff(infinite, _) -> infinite;
+time_diff(infinity, _) -> infinity;
 time_diff(A, B) -> A - B.

@@ -76,6 +76,8 @@ deregister_name(#actor{name = Name, locker_mod = LockerMod} = _Actor,
                       Channel) ->
     LockerMod:unregister_actor(Name, Channel).
 
+
+%% FIXME: Cleanup the response from this function.
 timeout(#actor{name = Name, locker_mod = LockerMod, state = State} = Actor,
         {lock, Channel}) ->
     ok = LockerMod:actor_timeout(Name, Channel),

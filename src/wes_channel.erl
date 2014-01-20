@@ -232,9 +232,6 @@ actor_inits(ChannelName, ActorArgs, Now, Timeouts) ->
       Timeouts,
       ActorArgs).
 
-
-
-
 %% ---------------------------------------------------------------------------
 %% Naming of channels
 
