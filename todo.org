@@ -39,10 +39,10 @@
   - [X] Channels
     - [X] Command to a channel without actors should generate a error log.
 
-* Verison 0.1.2 [2/3]
+* Verison 0.1.2 [3/3]
   Cleanup some design misstakes from 0.1
   - [X] Actor locker callback per actor, not per channel type
-  - [ ] Channel keeps track of each timeout and sets the next one after.
+  - [X] Channel keeps track of each timeout and sets the next one after.
   - [X] Move actor code from _channel.erl to _actor.erl
 
 * Version 0.2 [0/8]
@@ -50,7 +50,7 @@
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
   - [ ] Benchmark lib to make sure the ideas work.
-    - [ ] Can we introduce channel types to make the api easier?
+    - [ ] Can we introduce channel and actor types to make the api easier?
   - [ ] Behaviours and types for callbacks and records [0/5]
     - [ ] Actor
     - [ ] Db
