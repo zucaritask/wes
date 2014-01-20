@@ -96,7 +96,7 @@ register_actor(Id, Channel) ->
     error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
     case locker:lock({actor, Id}, Channel, locker_lease_duration()) of
         {ok, _, _, _} ->
-            ok;
+            {ok, 1000};
         {error, no_quorum} ->
             {error, no_quorum}
     end.

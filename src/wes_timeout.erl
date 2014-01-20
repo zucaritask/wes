@@ -6,7 +6,8 @@
 -export([next/1,
          reset/3,
          new/0,
-         add/4]).
+         add/4,
+         now/0]).
 
 next(Timeouts) ->
     dict:fold(fun(Name, {NextTimeout, _}, {NameAcc, TimeoutAcc}) ->
@@ -31,3 +32,7 @@ add(Name, Timeout, Now, Timeouts) ->
 
 new() ->
     dict:new().
+
+now() ->
+    {MegaSecs, Secs, _} = os:timestamp(),
+    MegaSecs * 1000000 + Secs.

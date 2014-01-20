@@ -20,6 +20,7 @@
 -record(state,
         {name,
          locker_mod,
+         timeouts,
          lock_timeout_interval,
          actors = []}).
 
@@ -74,13 +75,16 @@ actor_name_to_channel(ActorName, LockerMod) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([ChannelName, Actors, LockerMod, LockTimeout]) ->
-    timer:send_after(LockTimeout, lock_timeout),
-    ActorData = [wes_actor:init(ChannelName, Act) || Act <- Actors],
+init([ChannelName, ActorArgs, LockerMod, LockTimeout]) ->
+    Now = wes_timeout:now(),
+    {Actors, ActorTimeouts} =
+        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new()),
+    Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
+                               wes_timeout:now(), ActorTimeouts),
     {ok, #state{name = ChannelName,
-                lock_timeout_interval = LockTimeout,
+                timeouts = Timeouts,
                 locker_mod = LockerMod,
-                actors = ActorData}}.
+                actors = Actors}}.
 
 handle_call({command, Message}, _From,
             #state{name = Name, actors = []} = State) ->
@@ -113,18 +117,22 @@ handle_call({read, ActorName, Message}, _From,
     Reply = wes_actor:read(Actor, Message),
     {reply, Reply, State};
 handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs}, _From,
-            #state{actors = Actors, name = ChannelName} = State) ->
+            #state{actors = Actors, name = ChannelName,
+                   timeouts = Timeouts} = State) ->
+    Now = wes_timeout:now(),
     try
-        Actor = wes_actor:init(ChannelName, {ActorName, CbMod, DbMod, LockerMod,
-                                             InitArgs}),
+        {[Actor], NewTimeouts} =
+            actor_inits(ChannelName,
+                        [{ActorName, CbMod, DbMod, LockerMod, InitArgs}],
+                        Now, Timeouts),
         NewActors = wes_actor:list_add(ActorName, Actor, Actors),
-        {reply, ok, State#state{actors = NewActors}}
+        {reply, ok, State#state{actors = NewActors, timeouts = NewTimeouts}}
     catch throw:Reason ->
             error_logger:info_msg("Error ~p", [Reason]),
             {stop, normal, {error, Reason}, State}
     end;
 handle_call(stop, _From, State) ->
-    error_logger:info_msg("Stopp command", []),
+    error_logger:info_msg("Stop command", []),
     {stop, normal, ok, State}.
 
 handle_cast({event, Event}, #state{actors = Actors} = State) ->
@@ -149,15 +157,15 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(lock_timeout, #state{name = Name, actors = Actors,
-                                 lock_timeout_interval = Timeout,
-                                 locker_mod = LockerMod} = State) ->
-    channel_lock_timeout(Name, LockerMod),
-    lists:foreach(
-      fun(A0) -> wes_actor:lock_timeout(A0, Name) end,
-      Actors),
-    timer:send_after(Timeout, lock_timeout),
-    {noreply, State};
+handle_info({timeout, channel_lock_timeout},
+            #state{name = ChannelName, locker_mod = LockerMod} = State) ->
+    channel_lock_timeout(ChannelName, LockerMod),
+    timeout_reply({noreply, State});
+handle_info({timeout, {actor_timeout, ActorName, TimeoutData} = TimeoutName},
+            #state{actors = Actors, timeouts = Timeouts} = State) ->
+    wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
+    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
+    timeout_reply({noreply, State});
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -184,6 +192,32 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+timeout_reply({noreply, #state{timeouts = Timeouts} = State}) ->
+    {Name, Time} = wes_timeout:next(Timeouts),
+    timer:send_after(Time - wes_timeout:now(), {timeout, Name}),
+    {noreply, State}.
+
+actor_inits(ChannelName, ActorArgs, Now, Timeouts) ->
+    lists:mapfoldl(
+      fun(Act, TAcc0) ->
+              {Actor, TimeOuts} = wes_actor:init(ChannelName, Act),
+              NewTacc =
+                  lists:foldl(
+                    fun({TimeoutName, Interval}, TAcc1) ->
+                            wes_timeout:add(
+                              {actor_timeout,
+                               wes_actor:name(Actor), TimeoutName},
+                              Interval, Now, TAcc1)
+                    end,
+                    TAcc0,
+                    TimeOuts),
+              {Actor, NewTacc}
+      end,
+      Timeouts,
+      ActorArgs).
+
+
 
 
 %% ---------------------------------------------------------------------------
