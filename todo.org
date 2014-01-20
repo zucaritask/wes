@@ -39,6 +39,11 @@
   - [X] Channels
     - [X] Command to a channel without actors should generate a error log.
 
+* Verison 0.1.2 [1/2]
+  Cleanup some design misstakes from 0.1
+  - [X] Actor locker callback per actor, not per channel type
+  - [ ] Channel keeps track of each timeout and sets the next one after.
+
 * Version 0.2 [0/8]
   The lib should be _useful when prototyping_.
   It should be easy to write own callbaks.
@@ -49,18 +54,20 @@
     - [ ] Actor
     - [ ] Db
     - [ ] Locker
+    - [ ] Stats
     - [ ] Actor response record
   - [ ] Storage
     - [ ] Write module for s3, in separate app.
   - [ ] API
     - [ ] Should we check if channel is runnig before each command/read?
   - [ ] Channels [0/2]
-    - [ ] Introduce a channel type, channels are configured by type.
+    - [ ] Introduce a channel and actor type, channels are configured by type.
       - [ ] Proposals
-        * Public ets table with configs channeltype should be sent to each call.
+        * Public configs ets table with:
+          channel type, which should be sent to each call.
+          actor type, for easier starting and moving of actors.
         * Generate code from the spec.
       - [ ] Benchmark
-    - [ ] Actor locker callback per actor, not per channel type
   - [ ] Documentation
     - [ ] Write a HOWTO
     - [ ] Make a rebar skeleton
