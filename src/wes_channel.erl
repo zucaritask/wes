@@ -23,14 +23,6 @@
          lock_timeout_interval,
          actors = []}).
 
--record(actor,
-        {name,
-         locker_mod,
-         cb_mod,
-         db_mod,
-         state,
-         state_name = event}).
-
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -83,7 +75,7 @@ actor_name_to_channel(ActorName, LockerMod) ->
 
 init([ChannelName, Actors, LockerMod, LockTimeout]) ->
     timer:send_after(LockTimeout, lock_timeout),
-    ActorData = [actor_init(ChannelName, Act) || Act <- Actors],
+    ActorData = [wes_actor:init(ChannelName, Act) || Act <- Actors],
     {ok, #state{name = ChannelName,
                 lock_timeout_interval = LockTimeout,
                 locker_mod = LockerMod,
@@ -100,7 +92,7 @@ handle_call({command, Message}, _From,
         {NewActors, ShouldStop} =
             lists:mapfoldl(
               fun(A0, Stop) ->
-                      {Actor, AStop} = actor_act(A0, Message),
+                      {Actor, AStop} = wes_actor:act(A0, Message),
                       {Actor, Stop or AStop}
               end,
               false,
@@ -116,19 +108,19 @@ handle_call({command, Message}, _From,
     end;
 handle_call({read, ActorName, Message}, _From,
             #state{actors = Actors} = State) ->
-    Actor = actor_get(ActorName, Actors),
-    Reply = actor_read(Actor, Message),
+    Actor = wes_actor:list_get(ActorName, Actors),
+    Reply = wes_actor:read(Actor, Message),
     {reply, Reply, State};
 handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs}, _From,
             #state{actors = Actors, name = ChannelName} = State) ->
     try
-        case actor_init(ChannelName, {ActorName, CbMod, DbMod, LockerMod,
+        case wes_actor:init(ChannelName, {ActorName, CbMod, DbMod, LockerMod,
                                       InitArgs}) of
             {ok, Actor} ->
-                NewActors = actor_add(ActorName, Actor, Actors),
+                NewActors = wes_actor:list_add(ActorName, Actor, Actors),
                 {reply, ok, State#state{actors = NewActors}};
             {stop, Actor} ->
-                NewActors = actor_add(ActorName, Actor, Actors),
+                NewActors = wes_actor:list_add(ActorName, Actor, Actors),
                 {stop, normal, ok, State#state{actors = NewActors}}
         end
     catch throw:Reason ->
@@ -144,7 +136,7 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
         {NewActors, ShouldStop} =
             lists:mapfoldl(
               fun(A0, Stop) ->
-                      {Actor, AStop} = actor_act(A0, Event),
+                      {Actor, AStop} = wes_actor:act(A0, Event),
                       {Actor, Stop or AStop}
               end,
               false,
@@ -166,7 +158,7 @@ handle_info(lock_timeout, #state{name = Name, actors = Actors,
                                  locker_mod = LockerMod} = State) ->
     channel_lock_timeout(Name, LockerMod),
     lists:foreach(
-      fun(A0) -> actor_lock_timeout(A0, Name) end,
+      fun(A0) -> wes_actor:lock_timeout(A0, Name) end,
       Actors),
     timer:send_after(Timeout, lock_timeout),
     {noreply, State};
@@ -175,9 +167,9 @@ handle_info(_Info, State) ->
 
 terminate(normal, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
-    lists:foreach(fun(A0) -> actor_save(A0) end, Actors),
+    lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors),
     lists:foreach(
-      fun(A0) -> actor_deregister_name(A0, Name) end,
+      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
       Actors),
     channel_deregister_name(Name, LockerMod),
     ok;
@@ -185,7 +177,7 @@ terminate(Reason, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
     error_logger:error_msg("Reason ~p", [Reason]),
     lists:foreach(
-      fun(A0) -> actor_deregister_name(A0, Name) end,
+      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
       Actors),
     channel_deregister_name(Name, LockerMod),
     ok.
@@ -199,69 +191,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %% ---------------------------------------------------------------------------
-%% Naming of channels / actors
+%% Naming of channels
 
 channel_deregister_name(ChannelName, LockerMod) ->
     LockerMod:unregister_name(ChannelName).
 
 channel_lock_timeout(Channel, LockerMod) ->
     LockerMod:channel_timeout(Channel).
-
-actor_register_name(Name, Channel, LockerMod) ->
-    ok = LockerMod:register_actor(Name, Channel).
-
-actor_deregister_name(#actor{name = Name, locker_mod = LockerMod} = _Actor,
-                      Channel) ->
-    LockerMod:unregister_actor(Name, Channel).
-
-actor_lock_timeout(#actor{name = Name, locker_mod = LockerMod} = _Actor,
-                   Channel) ->
-    LockerMod:actor_timeout(Name, Channel).
-
-%% ---------------------------------------------------------------------------
-%% Actor
-
-actor_init(ChannelName, {ActorName, ActorCb, DbMod, LockerMod, InitArgs}) ->
-    Response =
-        case DbMod:read(ActorCb:key(ActorName)) of
-            {ok, {_Key, _Value} = Data} ->
-                response(ActorCb:from_struct(Data));
-            not_found ->
-                response(ActorCb:init(InitArgs))
-        end,
-    actor_register_name(ActorName, ChannelName, LockerMod),
-    #actor{name = ActorName,
-           locker_mod = LockerMod,
-           cb_mod = ActorCb,
-           db_mod = DbMod,
-           state_name = Response#actor_response.state_name,
-           state = Response#actor_response.state}.
-
-actor_save(#actor{state_name = StateName, cb_mod = CbMod,
-                  name = ActorName,
-                  state = ActorState, db_mod = DbMod}) ->
-    DbMod:write(CbMod:key(ActorName),
-                CbMod:to_struct(StateName, ActorState)).
-
-actor_add(ActorName, Actor, Actors) ->
-    lists:keystore(ActorName, #actor.name, Actors, Actor).
-
-actor_get(ActorName, Actors) ->
-    {value, Actor} = lists:keysearch(ActorName, #actor.name, Actors),
-    Actor.
-
-actor_read(#actor{cb_mod = CbMod, state = ActorState}, Message) ->
-    CbMod:read(Message, ActorState).
-
-actor_act(#actor{state_name = StateName, cb_mod = CbMod,
-                 state = ActorState} = Actor,
-          Message) ->
-    Response = response(CbMod:command(StateName, Message, ActorState)),
-    {Actor#actor{state_name = Response#actor_response.state_name,
-                 state = Response#actor_response.state},
-     Response#actor_response.stop_after}.
-
-response(#actor_response{} = Response) -> Response;
-response({stop, NewState}) ->
-    #actor_response{state = NewState, stop_after = true};
-response({ok, NewState}) -> #actor_response{state = NewState}.
