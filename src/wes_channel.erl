@@ -1,8 +1,8 @@
--module(wactor_channel).
+-module(wes_channel).
 
 -behaviour(gen_server).
 
--include("wactor.hrl").
+-include("wes.hrl").
 
 %% API
 -export([start/3, start/4,

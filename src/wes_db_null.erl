@@ -1,4 +1,4 @@
--module(wactor_db_null).
+-module(wes_db_null).
 
 -export([read/1,
          write/2]).

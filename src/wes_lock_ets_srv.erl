@@ -1,4 +1,4 @@
--module(wactor_lock_ets_srv).
+-module(wes_lock_ets_srv).
 
 -behaviour(gen_server).
 

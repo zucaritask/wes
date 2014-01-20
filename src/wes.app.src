@@ -1,4 +1,4 @@
-{application, wactor,
+{application, wes,
  [
   {description, ""},
   {vsn, "1"},

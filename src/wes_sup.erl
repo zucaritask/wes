@@ -1,4 +1,4 @@
--module(wactor_sup).
+-module(wes_sup).
 
 -behaviour(supervisor).
 

@@ -1,4 +1,4 @@
--module(wactor_lock_ets).
+-module(wes_lock_ets).
 
 %% API
 -export([start/1,
@@ -28,37 +28,37 @@
 %% User API
 
 start(Timeout) ->
-    Locker = {wactor_lock_ets,
-              {wactor_lock_ets_srv, start_link, [Timeout]},
-              permanent, 2000, worker, [wactor_lock_ets_srv]},
-    supervisor:start_child(wactor_sup, Locker).
+    Locker = {wes_lock_ets,
+              {wes_lock_ets_srv, start_link, [Timeout]},
+              permanent, 2000, worker, [wes_lock_ets_srv]},
+    supervisor:start_child(wes_sup, Locker).
 
 start_link(Timeout) ->
-    wactor_lock_ets_srv:start_link(Timeout).
+    wes_lock_ets_srv:start_link(Timeout).
 
 stop(ChannelName) ->
-    wactor_channel:stop(ChannelName, ?MODULE).
+    wes_channel:stop(ChannelName, ?MODULE).
 
 status(ChannelName) ->
-    wactor_channel:status(ChannelName, ?MODULE).
+    wes_channel:status(ChannelName, ?MODULE).
 
 start_channel(ChannelName, Timeout) ->
-    wactor_channel:start(ChannelName, ?MODULE, Timeout).
+    wes_channel:start(ChannelName, ?MODULE, Timeout).
 
 start_channel(ChannelName, StartActors, Timeout) ->
-    wactor_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
+    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
 
 command(ChannelName, Message) ->
-    wactor_channel:command(ChannelName, Message, ?MODULE).
+    wes_channel:command(ChannelName, Message, ?MODULE).
 
 event(ChannelName, Message) ->
-    wactor_channel:event(ChannelName, Message, ?MODULE).
+    wes_channel:event(ChannelName, Message, ?MODULE).
 
 read(ActorName, Message) ->
-    wactor_channel:read(ActorName, Message, ?MODULE).
+    wes_channel:read(ActorName, Message, ?MODULE).
 
 register_actor(ChannelName, ActorName, CbMod, DbMod, InitArgs) ->
-    wactor_channel:register_actor(
+    wes_channel:register_actor(
       ChannelName, ActorName, CbMod, DbMod, InitArgs, ?MODULE).
 
 
@@ -66,7 +66,7 @@ register_actor(ChannelName, ActorName, CbMod, DbMod, InitArgs) ->
 %% Lib callback
 
 send(Id, Event) ->
-    case wactor_lock_ets_srv:read({channel, Id}) of
+    case wes_lock_ets_srv:read({channel, Id}) of
         {ok, Pid} ->
             Pid ! Event;
         {error, not_found} ->
@@ -74,7 +74,7 @@ send(Id, Event) ->
     end.
 
 whereis_name(Id) ->
-    case wactor_lock_ets_srv:read({channel, Id}) of
+    case wes_lock_ets_srv:read({channel, Id}) of
         {ok, Pid} ->
             Pid;
         {error, not_found} ->
@@ -83,22 +83,22 @@ whereis_name(Id) ->
 
 unregister_name(Id) ->
     %% Assumed called from user process.
-    ok = wactor_lock_ets_srv:release({channel, Id}, self()).
+    ok = wes_lock_ets_srv:release({channel, Id}, self()).
 
 register_name(Id, Pid) ->
-    ok = wactor_lock_ets_srv:lock({channel, Id}, Pid),
+    ok = wes_lock_ets_srv:lock({channel, Id}, Pid),
     yes.
 
 register_actor(Id, Channel) ->
     error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
-    ok = wactor_lock_ets_srv:lock({actor, Id}, Channel).
+    ok = wes_lock_ets_srv:lock({actor, Id}, Channel).
 
 unregister_actor(Id, Channel) ->
     error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),
-    ok = wactor_lock_ets_srv:release({actor, Id}, Channel).
+    ok = wes_lock_ets_srv:release({actor, Id}, Channel).
 
 channel_for_actor(Id) ->
-    case wactor_lock_ets_srv:read({actor, Id}) of
+    case wes_lock_ets_srv:read({actor, Id}) of
         {ok, Channel} ->
             Channel;
         {error, not_found} ->
@@ -106,7 +106,7 @@ channel_for_actor(Id) ->
     end.
 
 actor_timeout(Name, Channel) ->
-    wactor_lock_ets_srv:extend_lease(Name, Channel).
+    wes_lock_ets_srv:extend_lease(Name, Channel).
 
 channel_timeout(Channel) ->
-    wactor_lock_ets_srv:extend_lease(Channel, self()).
+    wes_lock_ets_srv:extend_lease(Channel, self()).

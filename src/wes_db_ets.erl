@@ -1,11 +1,11 @@
--module(wactor_db_ets).
+-module(wes_db_ets).
 
 -behaviour(gen_server).
 
 %% API
 -export([start_link/0]).
 
-%% Wactor db callback interface.
+%% wes db callback interface.
 -export([read/1,
          write/2,
          clear/0]).

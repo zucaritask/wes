@@ -1,4 +1,4 @@
--module(wactor_locker).
+-module(wes_locker).
 
 %% API
 -export([start/6,
@@ -27,34 +27,34 @@
 
 start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
       PushTransInterval) ->
-    Locker = {wactor_locker,
+    Locker = {wes_locker,
               {locker, start_link,
                [W, LeaseExpireInterval, LockExpireInterval,
                 PushTransInterval]},
               permanent, 2000, worker, [locker]},
-    supervisor:start_child(wactor_sup, Locker),
+    supervisor:start_child(wes_sup, Locker),
     ok = locker:set_nodes(PrimaryNodes, PrimaryNodes, Replicas).
 
 stop(ChannelName) ->
-    wactor_channel:stop(ChannelName, ?MODULE).
+    wes_channel:stop(ChannelName, ?MODULE).
 
 start_channel(ChannelName, Timeout) ->
-    wactor_channel:start(ChannelName, ?MODULE, Timeout).
+    wes_channel:start(ChannelName, ?MODULE, Timeout).
 
 start_channel(ChannelName, StartActors, Timeout) ->
-    wactor_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
+    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
 
 command(ChannelName, Message) ->
-    wactor_channel:command(ChannelName, Message, ?MODULE).
+    wes_channel:command(ChannelName, Message, ?MODULE).
 
 event(ChannelName, Message) ->
-    wactor_channel:event(ChannelName, Message, ?MODULE).
+    wes_channel:event(ChannelName, Message, ?MODULE).
 
 read(ActorName, Message) ->
-    wactor_channel:read(ActorName, Message, ?MODULE).
+    wes_channel:read(ActorName, Message, ?MODULE).
 
 register_actor(ChannelName, ActorName, CbMod, DbMod, InitArgs) ->
-    wactor_channel:register_actor(
+    wes_channel:register_actor(
       ChannelName, ActorName, CbMod, DbMod, InitArgs, ?MODULE).
 
 

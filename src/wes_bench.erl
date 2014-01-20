@@ -1,12 +1,12 @@
--module(wactor_bench).
+-module(wes_bench).
 
 -export([bench/3]).
 
 bench(N, M, Sleep) ->
     timer:tc(
       fun() ->
-              wactor_sup:start_link(),
-              wactor_locker:start([node()], [], 1, 1000, 1000, 100),
+              wes_sup:start_link(),
+              wes_locker:start([node()], [], 1, 1000, 1000, 100),
               do(N, M, Sleep)
       end).
 
@@ -18,5 +18,5 @@ do(N, M, Sleep) ->
 
 do_do(_, 0) -> ok;
 do_do(N, M) ->
-    wactor_locker:start_channel({N, M}, 1000),
+    wes_locker:start_channel({N, M}, 1000),
     do_do(N, M-1).
