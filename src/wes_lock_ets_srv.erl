@@ -81,7 +81,7 @@ handle_call({release, Id, Value}, _From, #state{tab = Tab} = State) ->
             [{Id, OtherValue, _Timeout}] ->
                 {error, {locked_with_other_value, OtherValue}};
             [] ->
-                {error, no_such_lock}
+                {error, {no_such_lock, Id}}
         end,
     {reply, Reply, State};
 handle_call({extend_lease, Id, Value}, _From, #state{tab = Tab} = State) ->
@@ -96,7 +96,7 @@ handle_call({extend_lease, Id, Value}, _From, #state{tab = Tab} = State) ->
             [{Id, OtherValue, _Timeout}] ->
                 {error, {locked_with_other_value, OtherValue}};
             [] ->
-                {error, no_such_lock}
+                {error, {no_such_lock, Id}}
         end,
     {reply, Reply, State}.
 

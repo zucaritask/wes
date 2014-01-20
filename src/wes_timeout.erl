@@ -7,7 +7,8 @@
          reset/3,
          new/0,
          add/4,
-         now/0]).
+         now/0,
+         time_diff/2]).
 
 next(Timeouts) ->
     dict:fold(fun(Name, {NextTimeout, _}, {NameAcc, TimeoutAcc}) ->
@@ -36,3 +37,6 @@ new() ->
 now() ->
     {MegaSecs, Secs, _} = os:timestamp(),
     MegaSecs * 1000000 + Secs.
+
+time_diff(infinite, _) -> infinite;
+time_diff(A, B) -> A - B.

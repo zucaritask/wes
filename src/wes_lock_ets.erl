@@ -107,7 +107,7 @@ channel_for_actor(Id) ->
     end.
 
 actor_timeout(Name, Channel) ->
-    wes_lock_ets_srv:extend_lease(Name, Channel).
+    wes_lock_ets_srv:extend_lease({actor, Name}, Channel).
 
 channel_timeout(Channel) ->
     wes_lock_ets_srv:extend_lease(Channel, self()).

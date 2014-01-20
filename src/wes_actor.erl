@@ -78,7 +78,7 @@ deregister_name(#actor{name = Name, locker_mod = LockerMod} = _Actor,
 
 timeout(#actor{name = Name, locker_mod = LockerMod, state = State} = Actor,
         {lock, Channel}) ->
-    {ok, _} = LockerMod:actor_timeout(Name, Channel),
+    ok = LockerMod:actor_timeout(Name, Channel),
     Response = response({ok, State}),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},

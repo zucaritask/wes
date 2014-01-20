@@ -81,16 +81,17 @@ init([ChannelName, ActorArgs, LockerMod, LockTimeout]) ->
         actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new()),
     Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
                                wes_timeout:now(), ActorTimeouts),
-    {ok, #state{name = ChannelName,
-                timeouts = Timeouts,
-                locker_mod = LockerMod,
-                actors = Actors}}.
+    timeout_reply(
+      {ok, #state{name = ChannelName,
+                  timeouts = Timeouts,
+                  locker_mod = LockerMod,
+                  actors = Actors}}).
 
 handle_call({command, Message}, _From,
             #state{name = Name, actors = []} = State) ->
     error_logger:error_msg("Channel has no actors ~p got command ~p",
                            [Name, Message]),
-    {reply, ok, State};
+    timeout_reply({reply, ok, State});
 handle_call({command, Message}, _From,
             #state{actors = Actors} = State) ->
     try
@@ -106,7 +107,7 @@ handle_call({command, Message}, _From,
                 error_logger:info_msg("stop command~p", [Message]),
                 {stop, normal, ok, State#state{actors = NewActors}};
            true ->
-                {reply, ok, State#state{actors = NewActors}}
+                timeout_reply({reply, ok, State#state{actors = NewActors}})
         end
     catch throw:Reason ->
             {stop, normal, {error, Reason}, State}
@@ -115,10 +116,10 @@ handle_call({read, ActorName, Message}, _From,
             #state{actors = Actors} = State) ->
     Actor = wes_actor:list_get(ActorName, Actors),
     Reply = wes_actor:read(Actor, Message),
-    {reply, Reply, State};
-handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs}, _From,
-            #state{actors = Actors, name = ChannelName,
-                   timeouts = Timeouts} = State) ->
+    timeout_reply({reply, Reply, State});
+handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs},
+            _From, #state{actors = Actors, name = ChannelName,
+                          timeouts = Timeouts} = State) ->
     Now = wes_timeout:now(),
     try
         {[Actor], NewTimeouts} =
@@ -126,7 +127,8 @@ handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs}, _Fro
                         [{ActorName, CbMod, DbMod, LockerMod, InitArgs}],
                         Now, Timeouts),
         NewActors = wes_actor:list_add(ActorName, Actor, Actors),
-        {reply, ok, State#state{actors = NewActors, timeouts = NewTimeouts}}
+        NewState = State#state{actors = NewActors, timeouts = NewTimeouts},
+        timeout_reply({reply, ok, NewState})
     catch throw:Reason ->
             error_logger:info_msg("Error ~p", [Reason]),
             {stop, normal, {error, Reason}, State}
@@ -146,7 +148,7 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
               false,
               Actors),
         if ShouldStop ->
-                {noreply, State#state{actors = NewActors}};
+                timeout_reply({noreply, State#state{actors = NewActors}});
            true ->
                 {stop, normal, State#state{actors = NewActors}}
         end
@@ -155,19 +157,14 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
             {stop, normal, State}
     end;
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+    timeout_reply({noreply, State}).
 
-handle_info({timeout, channel_lock_timeout},
-            #state{name = ChannelName, locker_mod = LockerMod} = State) ->
-    channel_lock_timeout(ChannelName, LockerMod),
-    timeout_reply({noreply, State});
-handle_info({timeout, {actor_timeout, ActorName, TimeoutData} = TimeoutName},
-            #state{actors = Actors, timeouts = Timeouts} = State) ->
-    wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
-    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
-    timeout_reply({noreply, State});
+handle_info(timeout, #state{timeouts = Timeouts} = State) ->
+    {Name, _} = wes_timeout:next(Timeouts),
+    %% FIXME: Check if the times match.
+    handle_timeout(Name, State);
 handle_info(_Info, State) ->
-    {noreply, State}.
+    timeout_reply({noreply, State}).
 
 terminate(normal, #state{name = Name, actors = Actors,
                          locker_mod = LockerMod}) ->
@@ -193,10 +190,28 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-timeout_reply({noreply, #state{timeouts = Timeouts} = State}) ->
-    {Name, Time} = wes_timeout:next(Timeouts),
-    timer:send_after(Time - wes_timeout:now(), {timeout, Name}),
-    {noreply, State}.
+handle_timeout(channel_lock_timeout = TimeoutName,
+               #state{timeouts = Timeouts,
+                      name = ChannelName, locker_mod = LockerMod} = State) ->
+    channel_lock_timeout(ChannelName, LockerMod),
+    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
+    timeout_reply({noreply, State});
+handle_timeout({actor_timeout, ActorName, TimeoutData} = TimeoutName,
+               #state{actors = Actors, timeouts = Timeouts} = State) ->
+    wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
+    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
+    timeout_reply({noreply, State}).
+
+timeout_reply({noreply, State}) ->
+    {noreply, State, do_timeout_reply(State)};
+timeout_reply({ok, State}) ->
+    {ok, State, do_timeout_reply(State)};
+timeout_reply({reply, Reply, State}) ->
+    {reply, Reply, State, do_timeout_reply(State)}.
+
+do_timeout_reply(#state{timeouts = Timeouts}) ->
+    {_Name, Time} = wes_timeout:next(Timeouts),
+    wes_timeout:time_diff(Time, wes_timeout:now()).
 
 actor_inits(ChannelName, ActorArgs, Now, Timeouts) ->
     lists:mapfoldl(

@@ -56,6 +56,8 @@ test_ets() ->
     Actors = [{Actor, wes_example_count, wes_db_ets, wes_lock_ets, []}],
     {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000),
     ok = wes_lock_ets:command(Channel, incr),
+    error_logger:error_msg("before sleep tab ~p",
+                           [ets:tab2list(wes_lock_ets_srv)]),
     timer:sleep(1000),
     ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)),
     ok = wes_lock_ets:stop(Channel),
