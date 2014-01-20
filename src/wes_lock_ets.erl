@@ -8,7 +8,7 @@
          status/1,
          command/2,
          event/2,
-         read/2,
+         read/3,
          channel_timeout/1,
          register_actor/6]).
 
@@ -54,8 +54,8 @@ command(ChannelName, Message) ->
 event(ChannelName, Message) ->
     wes_channel:event(ChannelName, Message, ?MODULE).
 
-read(ActorName, Message) ->
-    wes_channel:read(ActorName, Message, ?MODULE).
+read(ActorName, Message, ActorLockMod) ->
+    wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).
 
 register_actor(ChannelName, ActorName, CbMod, DbMod, ActorLockMod, InitArgs) ->
     wes_channel:register_actor(

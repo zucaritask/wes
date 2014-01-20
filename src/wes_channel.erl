@@ -9,7 +9,7 @@
          stop/2,
          command/3,
          event/3,
-         read/3,
+         read/4,
          status/2,
          register_actor/7]).
 
@@ -49,9 +49,10 @@ command(ChannelName, Message, LockerMod) ->
 event(ChannelName, Message, LockerMod) ->
     gen_server:cast(channel_name(ChannelName, LockerMod), {event, Message}).
 
-read(ActorName, Message, LockerMod) ->
+read(ActorName, Message, ActorLockerMod, ChannelLockerMod) ->
     gen_server:call(
-      channel_name(actor_name_to_channel(ActorName, LockerMod), LockerMod),
+      channel_name(actor_name_to_channel(ActorName, ActorLockerMod),
+                   ChannelLockerMod),
       {read, ActorName, Message}).
 
 register_actor(ChannelName, ActorName, CbMod, DbMod, ActorLockerMod, InitArgs,
