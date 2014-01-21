@@ -2,9 +2,10 @@
 
 %% API
 -export([start/1,
+         stop/0,
          start_link/1,
          start_channel/3, start_channel/4,
-         stop/1,
+         stop_channel/1,
          status/1,
          command/3,
          event/3,
@@ -36,7 +37,11 @@ start(Timeout) ->
 start_link(Timeout) ->
     wes_lock_ets_srv:start_link(Timeout).
 
-stop(ChannelName) ->
+stop() ->
+    supervisor:terminate_child(wes_sup, wes_lock_ets),
+    supervisor:delete_child(wes_sup, wes_lock_ets).
+
+stop_channel(ChannelName) ->
     wes_channel:stop(ChannelName, ?MODULE).
 
 status(ChannelName) ->

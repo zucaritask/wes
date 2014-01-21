@@ -3,7 +3,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0,
+         stop/0]).
 
 %% wes db callback interface.
 -export([read/1,
@@ -39,6 +40,9 @@ write(Key, Value) ->
 clear() ->
     ets:delete_all_objects(?MODULE).
 
+stop() ->
+    gen_server:call(?SERVER, stop).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -50,9 +54,8 @@ init([]) ->
                             public]),
     {ok, #state{tab = Tab}}.
 
-handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.

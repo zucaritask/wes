@@ -185,7 +185,9 @@ handle_info(_Info, State) ->
     timeout_reply({noreply, State}).
 
 terminate(normal, #state{name = Name, actors = Actors,
-                         locker_mod = LockerMod}) ->
+                         locker_mod = LockerMod,
+                         stats_mod = StatsMod}) ->
+    StatsMod:stat(stop, normal),
     lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors),
     lists:foreach(
       fun(A0) -> wes_actor:deregister_name(A0, Name) end,
@@ -193,7 +195,9 @@ terminate(normal, #state{name = Name, actors = Actors,
     channel_deregister_name(Name, LockerMod),
     ok;
 terminate(Reason, #state{name = Name, actors = Actors,
-                         locker_mod = LockerMod}) ->
+                         locker_mod = LockerMod,
+                         stats_mod = StatsMod}) ->
+    StatsMod:stat(stop, error),
     error_logger:error_msg("Reason ~p", [Reason]),
     lists:foreach(
       fun(A0) -> wes_actor:deregister_name(A0, Name) end,

@@ -45,18 +45,17 @@
   - [X] Channel keeps track of each timeout and sets the next one after.
   - [X] Move actor code from _channel.erl to _actor.erl
 
-* Version 0.1.3 [0/3]
+* Version 0.1.3 [1/3]
   Things I want in the lib before deside how to do the api change for v0.2
   - [-] Monitoring
     - [X] Each message should have a name.
     - [ ] Each channel and actor should have a type.
     - [X] Stats callback
     - [ ] ... lots to do.
-  - [ ] Cleanup
-    - [ ] Move everything locker to a separate app.
-    - [ ] wes_test.erl looks like crap.
+  - [X] Cleanup
+    - [X] wes_tests.erl looks like crap.
   - [ ] Storage
-    - [ ] Write module for s3, in separate app.
+    - [ ] Write module for s3.
 
 * Version 0.1.4 [0/2]
   Starting to settle on internal apis.
@@ -84,6 +83,8 @@
   - [ ] Documentation
     - [ ] Write a HOWTO
     - [ ] Make a rebar skeleton
+  - [ ] Cleanup
+    - [ ] Move all callbacks that introduces rebar deps to separate apps.
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.
