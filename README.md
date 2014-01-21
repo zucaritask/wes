@@ -1,14 +1,9 @@
 # wes
-
 This is a work in progress. See todo.org for more details.
 
 ## Introduction
-
-wes aims to the be the hub for the building blocks need to build an
-actor based services in erlang.
-wes helps you to decouple the building blocks of the system.
-The caller is decoupled from the application logic.
-The application logic is decoupled from the process registry,
+Wes is a library that helps you to build actor based services in erlang.
+The focus of Wes is to keep your code decouple and reuseable. 
 
 ## API
 A caller interacts with with system through commands and reads.
