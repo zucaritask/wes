@@ -20,6 +20,8 @@ Retrives a view of the state of an actor.
 This is a work in progress. See todo.org for more details.
 
 ## Building blocks
+For each building block (except channels) wes exposes a callback interface
+to implement.
 
 ### Name registry
 A name registry implementation keep trac of in which process each channel is
