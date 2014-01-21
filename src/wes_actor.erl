@@ -4,11 +4,14 @@
 
 -record(actor,
         {name,
+         state,
+         state_name = event,
+          %% move this to some actor type conf.
          locker_mod,
          cb_mod,
          db_mod,
-         state,
-         state_name = event}).
+         db_conf
+         }).
 
 -export([init/2,
          save/1,
@@ -24,9 +27,9 @@
          deregister_name/2,
          timeout/2]).
 
-init(ChannelName, {ActorName, ActorCb, DbMod, LockerMod, InitArgs}) ->
+init(ChannelName, {ActorName, ActorCb, DbMod, DbConf, LockerMod, InitArgs}) ->
     Response =
-        case DbMod:read(ActorCb:key(ActorName)) of
+        case DbMod:read(ActorCb:key(ActorName), DbConf) of
             {ok, {_Key, _Value} = Data} ->
                 response(ActorCb:from_struct(Data));
             not_found ->
@@ -38,6 +41,7 @@ init(ChannelName, {ActorName, ActorCb, DbMod, LockerMod, InitArgs}) ->
     {#actor{name = ActorName,
             locker_mod = LockerMod,
             cb_mod = ActorCb,
+            db_conf = DbConf,
             db_mod = DbMod,
             state_name = Response#actor_response.state_name,
             state = Response#actor_response.state},
@@ -46,10 +50,11 @@ init(ChannelName, {ActorName, ActorCb, DbMod, LockerMod, InitArgs}) ->
 name(#actor{name = Name}) -> Name.
 
 save(#actor{state_name = StateName, cb_mod = CbMod,
-                  name = ActorName,
+                  name = ActorName, db_conf = Conf,
                   state = ActorState, db_mod = DbMod}) ->
     DbMod:write(CbMod:key(ActorName),
-                CbMod:to_struct(StateName, ActorState)).
+                CbMod:to_struct(StateName, ActorState),
+                Conf).
 
 list_add(ActorName, Actor, Actors) ->
     lists:keystore(ActorName, #actor.name, Actors, Actor).

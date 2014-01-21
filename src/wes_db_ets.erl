@@ -3,12 +3,14 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0,
+-export([start/1,
+         stop/1,
+         start_link/0,
          stop/0]).
 
 %% wes db callback interface.
--export([read/1,
-         write/2,
+-export([read/2,
+         write/3,
          clear/0]).
 
 %% gen_server callbacks
@@ -23,10 +25,23 @@
 %%% API
 %%%===================================================================
 
+start(Conf) ->
+    Name = proplists:get_value(sup_name, Conf, ?MODULE),
+    Spec = {Name, {?MODULE, start_link, []},
+            permanent, 2000, worker, [?MODULE]},
+    {ok, _} = supervisor:start_child(wes_sup, Spec),
+    ok.
+
+stop(Conf) ->
+    Name = proplists:get_value(sup_name, Conf, ?MODULE),
+    supervisor:terminate_child(wes_sup, Name),
+    supervisor:delete_child(wes_sup, Name).
+
+
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-read(Key) ->
+read(Key, []) ->
     case ets:lookup(?MODULE, Key) of
         [{_Key, _Value} = Data] ->
             {ok, Data};
@@ -34,7 +49,7 @@ read(Key) ->
             not_found
     end.
 
-write(Key, Value) ->
+write(Key, Value, []) ->
     ets:insert(?MODULE, {Key, Value}).
 
 clear() ->

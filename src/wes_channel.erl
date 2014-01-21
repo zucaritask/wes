@@ -11,7 +11,7 @@
          event/4,
          read/4,
          status/2,
-         register_actor/7]).
+         register_actor/8]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -60,11 +60,11 @@ read(ActorName, Message, ActorLockerMod, ChannelLockerMod) ->
                    ChannelLockerMod),
       {read, ActorName, Message}).
 
-register_actor(ChannelName, ActorName, CbMod, DbMod, ActorLockerMod, InitArgs,
-               ChannelLockerMod) ->
+register_actor(ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockerMod,
+               InitArgs, ChannelLockerMod) ->
     gen_server:call(channel_name(ChannelName, ChannelLockerMod),
-                    {register_actor, ActorName, CbMod, DbMod, ActorLockerMod,
-                     InitArgs}).
+                    {register_actor, ActorName, CbMod, DbMod, DbConf,
+                     ActorLockerMod, InitArgs}).
 
 %% ---------------------------------------------------------------------------
 %% API Helpers
@@ -131,7 +131,8 @@ handle_call({read, ActorName, Name}, _From,
     Reply = wes_actor:read(Actor, Name),
     StatsMod:stat(read, Name),
     timeout_reply({reply, Reply, State});
-handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs},
+handle_call({register_actor, ActorName, CbMod, DbMod, DbConf, LockerMod,
+             InitArgs},
             _From, #state{actors = Actors, name = ChannelName,
                           stats_mod = StatsMod,
                           timeouts = Timeouts} = State) ->
@@ -139,7 +140,8 @@ handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs},
     try
         {[Actor], NewTimeouts} =
             actor_inits(ChannelName,
-                        [{ActorName, CbMod, DbMod, LockerMod, InitArgs}],
+                        [{ActorName, CbMod, DbMod, DbConf, LockerMod,
+                          InitArgs}],
                         Now, Timeouts, StatsMod),
         NewActors = wes_actor:list_add(ActorName, Actor, Actors),
         NewState = State#state{actors = NewActors, timeouts = NewTimeouts},

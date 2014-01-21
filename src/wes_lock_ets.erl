@@ -11,7 +11,7 @@
          event/3,
          read/3,
          channel_timeout/1,
-         register_actor/6]).
+         register_actor/7]).
 
 %% {via, , }  api.
 -export([send/2,
@@ -62,9 +62,11 @@ event(ChannelName, CmdName, CmdMessage) ->
 read(ActorName, Message, ActorLockMod) ->
     wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).
 
-register_actor(ChannelName, ActorName, CbMod, DbMod, ActorLockMod, InitArgs) ->
+register_actor(ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod,
+               InitArgs) ->
     wes_channel:register_actor(
-      ChannelName, ActorName, CbMod, DbMod, ActorLockMod, InitArgs, ?MODULE).
+      ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod, InitArgs,
+      ?MODULE).
 
 
 %% ---------------------------------------------------------------------------
