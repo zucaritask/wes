@@ -8,9 +8,14 @@ wes helps you to decouple the building blocks of the system.
 The caller is decoupled from the application logic.
 The application logic is decoupled from the process registry,
 
+## API
 A caller interacts with with system through commands and reads.
-A *command* changes the state of a set of actors.
-A *read* retrives a view of the state of an actor.
+
+### Command
+Changes the state of all actors connected to a channel.
+
+### Read
+Retrives a view of the state of an actor.
 
 This is a work in progress. See todo.org for more details.
 
