@@ -13,7 +13,7 @@
 -export([init/2,
          save/1,
          read/2,
-         act/2,
+         act/3,
          name/1
          ]).
 
@@ -63,8 +63,9 @@ read(#actor{cb_mod = CbMod, state = ActorState}, Message) ->
 
 act(#actor{state_name = StateName, cb_mod = CbMod,
            state = ActorState} = Actor,
-    Message) ->
-    Response = response(CbMod:command(StateName, Message, ActorState)),
+    CmdName, CmdPayload) ->
+    Response = response(CbMod:command(StateName, CmdName, CmdPayload,
+                                      ActorState)),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
      Response#actor_response.stop_after}.

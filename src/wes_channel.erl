@@ -5,10 +5,10 @@
 -include("wes.hrl").
 
 %% API
--export([start/3, start/4,
+-export([start/4, start/5,
          stop/2,
-         command/3,
-         event/3,
+         command/4,
+         event/4,
          read/4,
          status/2,
          register_actor/7]).
@@ -20,6 +20,7 @@
 -record(state,
         {name,
          locker_mod,
+         stats_mod,
          timeouts,
          lock_timeout_interval,
          actors = []}).
@@ -28,12 +29,13 @@
 %%% API
 %%%===================================================================
 
-start(ChannelName, LockerMod, LockTimeout) ->
-    start(ChannelName, [], LockerMod, LockTimeout).
+start(ChannelName, LockerMod, LockTimeout, StatsMod) ->
+    start(ChannelName, [], LockerMod, LockTimeout, StatsMod).
 
-start(ChannelName, StartActors, LockerMod, LockTimeout) ->
+start(ChannelName, StartActors, LockerMod, LockTimeout, StatsMod) ->
     gen_server:start_link(channel_name(ChannelName, LockerMod), ?MODULE,
-                     [ChannelName, StartActors, LockerMod, LockTimeout], []).
+                     [ChannelName, StartActors, LockerMod, LockTimeout,
+                      StatsMod], []).
 
 stop(ChannelName, LockerMod) ->
     gen_server:call(channel_name(ChannelName, LockerMod), stop).
@@ -44,11 +46,13 @@ status(ChannelName, LockerMod) ->
         Pid when is_pid(Pid) -> {ok, Pid}
     end.
 
-command(ChannelName, Message, LockerMod) ->
-    gen_server:call(channel_name(ChannelName, LockerMod), {command, Message}).
+command(ChannelName, CmdName, CmdPayload, LockerMod) ->
+    gen_server:call(channel_name(ChannelName, LockerMod),
+                    {command, CmdName, CmdPayload}).
 
-event(ChannelName, Message, LockerMod) ->
-    gen_server:cast(channel_name(ChannelName, LockerMod), {event, Message}).
+event(ChannelName, EvName, EvPayload, LockerMod) ->
+    gen_server:cast(channel_name(ChannelName, LockerMod),
+                    {event, EvName, EvPayload}).
 
 read(ActorName, Message, ActorLockerMod, ChannelLockerMod) ->
     gen_server:call(
@@ -75,57 +79,68 @@ actor_name_to_channel(ActorName, LockerMod) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([ChannelName, ActorArgs, LockerMod, LockTimeout]) ->
+init([ChannelName, ActorArgs, LockerMod, LockTimeout, StatsMod]) ->
     Now = wes_timeout:now(),
     {Actors, ActorTimeouts} =
-        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new()),
+        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(), StatsMod),
     Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
                                wes_timeout:now(), ActorTimeouts),
+    StatsMod:stat(start, channel),
     timeout_reply(
       {ok, #state{name = ChannelName,
+                  stats_mod = StatsMod,
                   timeouts = Timeouts,
                   locker_mod = LockerMod,
                   actors = Actors}}).
 
-handle_call({command, Message}, _From,
-            #state{name = Name, actors = []} = State) ->
+handle_call({command, CmdName, _CmdPayload}, _From,
+            #state{name = ChannelName,
+                   stats_mod = StatsMod,
+                   actors = []} = State) ->
     error_logger:error_msg("Channel has no actors ~p got command ~p",
-                           [Name, Message]),
+                           [ChannelName, CmdName]),
+    StatsMod:stat(command, CmdName),
     timeout_reply({reply, ok, State});
-handle_call({command, Message}, _From,
-            #state{actors = Actors} = State) ->
+handle_call({command, CmdName, CmdPayload}, _From,
+            #state{name = ChannelName, stats_mod = StatsMod,
+                   actors = Actors} = State) ->
     try
         {NewActors, ShouldStop} =
             lists:mapfoldl(
               fun(A0, Stop) ->
-                      {Actor, AStop} = wes_actor:act(A0, Message),
+                      {Actor, AStop} = wes_actor:act(A0, CmdName, CmdPayload),
                       {Actor, Stop or AStop}
               end,
               false,
               Actors),
         if ShouldStop ->
-                error_logger:info_msg("stop command~p", [Message]),
+                error_logger:info_msg("stop command ~p:~p",
+                                      [ChannelName, CmdName]),
                 {stop, normal, ok, State#state{actors = NewActors}};
            true ->
                 timeout_reply({reply, ok, State#state{actors = NewActors}})
         end
     catch throw:Reason ->
             {stop, normal, {error, Reason}, State}
+    after
+        StatsMod:stat(command, CmdName)
     end;
-handle_call({read, ActorName, Message}, _From,
-            #state{actors = Actors} = State) ->
+handle_call({read, ActorName, Name}, _From,
+            #state{actors = Actors, stats_mod = StatsMod} = State) ->
     Actor = wes_actor:list_get(ActorName, Actors),
-    Reply = wes_actor:read(Actor, Message),
+    Reply = wes_actor:read(Actor, Name),
+    StatsMod:stat(read, Name),
     timeout_reply({reply, Reply, State});
 handle_call({register_actor, ActorName, CbMod, DbMod, LockerMod, InitArgs},
             _From, #state{actors = Actors, name = ChannelName,
+                          stats_mod = StatsMod,
                           timeouts = Timeouts} = State) ->
     Now = wes_timeout:now(),
     try
         {[Actor], NewTimeouts} =
             actor_inits(ChannelName,
                         [{ActorName, CbMod, DbMod, LockerMod, InitArgs}],
-                        Now, Timeouts),
+                        Now, Timeouts, StatsMod),
         NewActors = wes_actor:list_add(ActorName, Actor, Actors),
         NewState = State#state{actors = NewActors, timeouts = NewTimeouts},
         timeout_reply({reply, ok, NewState})
@@ -137,12 +152,13 @@ handle_call(stop, _From, State) ->
     error_logger:info_msg("Stop command", []),
     {stop, normal, ok, State}.
 
-handle_cast({event, Event}, #state{actors = Actors} = State) ->
+handle_cast({event, EvName, EvPayload},
+            #state{actors = Actors, stats_mod = StatsMod} = State) ->
     try
         {NewActors, ShouldStop} =
             lists:mapfoldl(
               fun(A0, Stop) ->
-                      {Actor, AStop} = wes_actor:act(A0, Event),
+                      {Actor, AStop} = wes_actor:act(A0, EvName, EvPayload),
                       {Actor, Stop or AStop}
               end,
               false,
@@ -155,6 +171,8 @@ handle_cast({event, Event}, #state{actors = Actors} = State) ->
     catch throw:_Reason ->
             error_logger:info_msg("Error ~p", [_Reason]),
             {stop, normal, State}
+    after
+        StatsMod:stat(event, EvName)
     end;
 handle_cast(_Msg, State) ->
     timeout_reply({noreply, State}).
@@ -192,12 +210,17 @@ code_change(_OldVsn, State, _Extra) ->
 
 handle_timeout(channel_lock_timeout = TimeoutName,
                #state{timeouts = Timeouts,
+                      stats_mod = StatsMod,
                       name = ChannelName, locker_mod = LockerMod} = State) ->
+    StatsMod:stat(timeout, channel_lock),
     channel_lock_timeout(ChannelName, LockerMod),
     wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
     timeout_reply({noreply, State});
 handle_timeout({actor_timeout, ActorName, TimeoutData} = TimeoutName,
-               #state{actors = Actors, timeouts = Timeouts} = State) ->
+               #state{actors = Actors,
+                      stats_mod = StatsMod,
+                      timeouts = Timeouts} = State) ->
+    StatsMod:stat(timeout, actor_timeout),
     wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
     wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
     timeout_reply({noreply, State}).
@@ -213,10 +236,11 @@ do_timeout_reply(#state{timeouts = Timeouts}) ->
     {_Name, Time} = wes_timeout:next(Timeouts),
     wes_timeout:time_diff(Time, wes_timeout:now()).
 
-actor_inits(ChannelName, ActorArgs, Now, Timeouts) ->
+actor_inits(ChannelName, ActorArgs, Now, Timeouts, StatsMod) ->
     lists:mapfoldl(
       fun(Act, TAcc0) ->
               {Actor, TimeOuts} = wes_actor:init(ChannelName, Act),
+              StatsMod:stat(start, actor),
               NewTacc =
                   lists:foldl(
                     fun({TimeoutName, Interval}, TAcc1) ->

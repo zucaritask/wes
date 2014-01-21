@@ -18,5 +18,5 @@ do(N, M, Sleep) ->
 
 do_do(_, 0) -> ok;
 do_do(N, M) ->
-    wes_locker:start_channel({N, M}, 1000),
+    wes_locker:start_channel({N, M}, [], 1000, wes_stats_ets),
     do_do(N, M-1).

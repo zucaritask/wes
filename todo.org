@@ -47,9 +47,10 @@
 
 * Version 0.1.3 [0/3]
   Things I want in the lib before deside how to do the api change for v0.2
-  - [ ] Monitoring
-    - [ ] Each message should have a name.
+  - [-] Monitoring
+    - [X] Each message should have a name.
     - [ ] Each channel and actor should have a type.
+    - [X] Stats callback
     - [ ] ... lots to do.
   - [ ] Cleanup
     - [ ] Move everything locker to a separate app.
@@ -93,6 +94,8 @@
   - [ ] Events [0/2]
     - [ ] Actors can send events to channels before the current command is over.
     - [ ] Events to current channel is either sync or not sent as a message.
+  - [ ] Observable?
+    - [ ] Channels or actors should be observable by either channel or actors.
 
 * Version 1.0 [0/1]
   The lib should be able to run is a _production ready_ system.

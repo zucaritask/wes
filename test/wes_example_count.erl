@@ -4,7 +4,7 @@
 
 -export([init/1,
          read/2,
-         command/3,
+         command/4,
          key/1,
          to_struct/2,
          from_struct/1]).
@@ -15,13 +15,13 @@ init([]) ->
 read(counter, ActorState) ->
     ActorState.
 
-command(_StateName, {incr, 0}, ActorState) ->
+command(_StateName, incr, [0], ActorState) ->
     {stop, ActorState};
-command(_StateName, incr, ActorState) ->
-    command(_StateName, {incr, 1}, ActorState);
-command(_StateName, {incr, Nr}, ActorState) when Nr > 0 ->
+command(_StateName, incr, [], ActorState) ->
+    command(_StateName, incr, [1], ActorState);
+command(_StateName, incr, [Nr], ActorState) when Nr > 0 ->
     {ok, ActorState+Nr};
-command(_StateName, {incr, Nr}, _ActorState) ->
+command(_StateName, incr, [Nr], _ActorState) ->
     throw({negative_increment, Nr}).
 
 key(Actorname) ->

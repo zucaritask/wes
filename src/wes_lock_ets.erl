@@ -3,11 +3,11 @@
 %% API
 -export([start/1,
          start_link/1,
-         start_channel/2, start_channel/3,
+         start_channel/3, start_channel/4,
          stop/1,
          status/1,
-         command/2,
-         event/2,
+         command/3,
+         event/3,
          read/3,
          channel_timeout/1,
          register_actor/6]).
@@ -42,17 +42,17 @@ stop(ChannelName) ->
 status(ChannelName) ->
     wes_channel:status(ChannelName, ?MODULE).
 
-start_channel(ChannelName, Timeout) ->
-    wes_channel:start(ChannelName, ?MODULE, Timeout).
+start_channel(ChannelName, Timeout, StatsMod) ->
+    wes_channel:start(ChannelName, ?MODULE, Timeout, StatsMod).
 
-start_channel(ChannelName, StartActors, Timeout) ->
-    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
+start_channel(ChannelName, StartActors, Timeout, StatsMod) ->
+    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout, StatsMod).
 
-command(ChannelName, Message) ->
-    wes_channel:command(ChannelName, Message, ?MODULE).
+command(ChannelName, CmdName, CmdMessage) ->
+    wes_channel:command(ChannelName, CmdName, CmdMessage, ?MODULE).
 
-event(ChannelName, Message) ->
-    wes_channel:event(ChannelName, Message, ?MODULE).
+event(ChannelName, CmdName, CmdMessage) ->
+    wes_channel:event(ChannelName, CmdName, CmdMessage, ?MODULE).
 
 read(ActorName, Message, ActorLockMod) ->
     wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).

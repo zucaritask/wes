@@ -14,9 +14,11 @@ db_test_() ->
        fun test_add_actor/0]}].
 
 test_setup() ->
+    wes_stats_ets:start_link(),
     wes_sup:start_link().
 
 test_teardown(_) ->
+    wes_stats_ets:stop(),
     ok.
 
 test_locker() ->
@@ -24,12 +26,17 @@ test_locker() ->
     Actor = act1,
     wes_locker:start([node()], [], 1, 1000, 1000, 100),
     Actors = [{Actor, wes_example_count, wes_db_null, wes_locker, []}],
-    {ok, _Pid} = wes_locker:start_channel(Channel, Actors, 2000),
-    ok = wes_locker:command(Channel, incr),
+    {ok, _Pid} = wes_locker:start_channel(Channel, Actors, 2000, wes_stats_ets),
+    ok = wes_locker:command(Channel, incr, []),
     ?assertEqual(1, wes_locker:read(Actor, counter, wes_locker)),
     wes_locker:stop(Channel),
-    {ok, _OtherPid} = wes_locker:start_channel(Channel, Actors, 2000),
+    {ok, _OtherPid} = wes_locker:start_channel(Channel, Actors, 2000, wes_stats_ets),
     ?assertEqual(0, wes_locker:read(Actor, counter, wes_locker)),
+    %% Test stats.
+    ?assertEqual([{{command, incr},1},
+                  {{read, counter}, 2},
+                  {{start, actor}, 2},
+                  {{start, channel}, 2}], wes_stats_ets:all_stats()),
     wes_locker:stop(Channel).
 
 test_locker_restart() ->
@@ -38,11 +45,11 @@ test_locker_restart() ->
     wes_db_ets:start_link(),
     wes_db_ets:clear(),
     Actors = [{Actor, wes_example_count, wes_db_ets, wes_locker, []}],
-    {ok, _Pid} = wes_locker:start_channel(Channel, Actors, 2000),
-    ok = wes_locker:command(Channel, incr),
+    {ok, _Pid} = wes_locker:start_channel(Channel, Actors, 2000, wes_stats_ets),
+    ok = wes_locker:command(Channel, incr, []),
     ?assertEqual(1, wes_locker:read(Actor, counter, wes_locker)),
     wes_locker:stop(Channel),
-    {ok, _OtherPid} = wes_locker:start_channel(Channel, Actors, 2000),
+    {ok, _OtherPid} = wes_locker:start_channel(Channel, Actors, 2000, wes_stats_ets),
     ?assertEqual(1, wes_locker:read(Actor, counter, wes_locker)),
     wes_locker:stop(Channel),
     wes_db_ets:clear().
@@ -54,14 +61,14 @@ test_ets() ->
     wes_db_ets:clear(),
     {ok, _} = wes_lock_ets:start(1000),
     Actors = [{Actor, wes_example_count, wes_db_ets, wes_lock_ets, []}],
-    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000),
-    ok = wes_lock_ets:command(Channel, incr),
+    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000, wes_stats_ets),
+    ok = wes_lock_ets:command(Channel, incr, []),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
     timer:sleep(1000),
     ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)),
     ok = wes_lock_ets:stop(Channel),
-    {ok, _Pid2} = wes_lock_ets:start_channel(Channel, Actors, 2000),
+    {ok, _Pid2} = wes_lock_ets:start_channel(Channel, Actors, 2000, wes_stats_ets),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
     ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)),
     wes_db_ets:clear().
@@ -73,12 +80,13 @@ test_stop() ->
     wes_db_ets:clear(),
     wes_lock_ets:start(1000),
     Actors = [{Actor, wes_example_count, wes_db_ets, wes_lock_ets, []}],
-    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000),
-    ok = wes_lock_ets:command(Channel, incr),
+    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000, wes_stats_ets),
+    ok = wes_lock_ets:command(Channel, incr, []),
     ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
     ?assertMatch({ok, _Pid}, wes_lock_ets:status(Channel)),
-    ok = wes_lock_ets:command(Channel, {incr, 0}),
+    %% This should generate a stop by the actor.
+    ok = wes_lock_ets:command(Channel, incr, [0]),
     ?assertMatch({error, not_found}, wes_lock_ets:status(Channel)).
 
 test_bad_command() ->
@@ -88,9 +96,10 @@ test_bad_command() ->
     wes_db_ets:clear(),
     wes_lock_ets:start(1000),
     Actors = [{Actor, wes_example_count, wes_db_ets, wes_lock_ets, []}],
-    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000),
-    ok = wes_lock_ets:command(Channel, incr),
-    ok = wes_lock_ets:command(Channel, {incr, -0}).
+    {ok, _Pid} = wes_lock_ets:start_channel(Channel, Actors, 2000, wes_stats_ets),
+    ok = wes_lock_ets:command(Channel, incr, []),
+    ?assertEqual({error, {negative_increment, -1}},
+                 wes_lock_ets:command(Channel, incr, [-1])).
 
 test_add_actor() ->
     Channel = hej5,
@@ -98,8 +107,8 @@ test_add_actor() ->
     wes_db_ets:start_link(),
     wes_db_ets:clear(),
     wes_lock_ets:start(1000),
-    {ok, _Pid} = wes_lock_ets:start_channel(Channel, [], 2000),
+    {ok, _Pid} = wes_lock_ets:start_channel(Channel, [], 2000, wes_stats_ets),
     wes_lock_ets:register_actor(Channel, Actor, wes_example_count,
                                 wes_db_null, wes_lock_ets, []),
-    ok = wes_lock_ets:command(Channel, incr),
+    ok = wes_lock_ets:command(Channel, incr, []),
     ?assertEqual(1, wes_lock_ets:read(Actor, counter, wes_lock_ets)).

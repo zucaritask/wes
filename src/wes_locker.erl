@@ -2,10 +2,10 @@
 
 %% API
 -export([start/6,
-         start_channel/2, start_channel/3,
+         start_channel/3, start_channel/4,
          stop/1,
-         command/2,
-         event/2,
+         command/3,
+         event/3,
          read/3,
          channel_timeout/1,
          register_actor/6]).
@@ -38,17 +38,17 @@ start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
 stop(ChannelName) ->
     wes_channel:stop(ChannelName, ?MODULE).
 
-start_channel(ChannelName, Timeout) ->
-    wes_channel:start(ChannelName, ?MODULE, Timeout).
+start_channel(ChannelName, Timeout, StatsMod) ->
+    wes_channel:start(ChannelName, ?MODULE, Timeout, StatsMod).
 
-start_channel(ChannelName, StartActors, Timeout) ->
-    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout).
+start_channel(ChannelName, StartActors, Timeout, StatsMod) ->
+    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout, StatsMod).
 
-command(ChannelName, Message) ->
-    wes_channel:command(ChannelName, Message, ?MODULE).
+command(ChannelName, Name, Payload) ->
+    wes_channel:command(ChannelName, Name, Payload, ?MODULE).
 
-event(ChannelName, Message) ->
-    wes_channel:event(ChannelName, Message, ?MODULE).
+event(ChannelName, Name, Payload) ->
+    wes_channel:event(ChannelName, Name, Payload, ?MODULE).
 
 read(ActorName, Message, ActorLockMod) ->
     wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).
