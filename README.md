@@ -1,5 +1,7 @@
 # wes
 
+This is a work in progress. See todo.org for more details.
+
 ## Introduction
 
 wes aims to the be the hub for the building blocks need to build an
@@ -16,8 +18,6 @@ Changes the state of all actors connected to a channel.
 
 ### Read
 Retrives a view of the state of an actor.
-
-This is a work in progress. See todo.org for more details.
 
 ## Building blocks
 For each building block (except channels) wes exposes a callback interface
