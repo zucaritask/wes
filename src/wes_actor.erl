@@ -23,6 +23,22 @@
          deregister_name/2,
          timeout/2]).
 
+-type state_name()  :: any().
+
+-export_type([state_name/0]).
+
+-callback init(InitArgs::any()) ->  Response::wes:actor_response().
+-callback read(Name::any(), ActorState::wes:actor_state()) -> View::any().
+-callback command(StateName::state_name(), CommandName::any(), CommandArgs::any(),
+                  ActorState::wes:actor_state()) ->
+    Response::wes:actor_response().
+-callback key(ActorName::wes:actor_name()) -> wes_db:key().
+-callback to_struct(ActorName::wes:actor_name(),
+                    ActorState::wes:actor_state()) ->
+    wes:serialized_actor().
+-callback from_struct({Key::wes_db:key(), wes:serialized_actor()}) ->
+    {ok, ActorState::wes:actor_state()}.
+
 init(ChannelName, {ActorName, Type, InitArgs}) ->
     #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf= DbConf,
                   locker_mod = LockerMod} = wes_config:actor(Type),

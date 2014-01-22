@@ -55,16 +55,21 @@
   - [X] Storage
     - [X] Write module for s3.
 
-* Version 0.1.4 [0/1]
+* Version 0.1.4 [1/1]
   Starting to settle on internal apis.
-  - [-] Behaviours and types for callbacks and records [3/5]
-    - [ ] Actor
+  - [X] Behaviours and types for callbacks and records [5/5]
+    - [X] Actor
     - [X] Db
     - [X] Locker
     - [X] Stats
-    - [ ] Actor response record
-  - [ ] API
-    - [ ] Should we check if channel is runnig before each command/read?
+    - [X] Actor response record
+
+* Version 0.1.5 [0/1]
+  - [ ] Api
+    - [ ] What happens when the channel starts but one of the
+    starting actors can register its name?
+  - [ ] Stats
+    Proof of concept at this point. Make it better.
 
 * Version 0.2 [1/4]
   The lib should be _useful when prototyping_ a wooga erlang backend.

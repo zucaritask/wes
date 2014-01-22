@@ -1,5 +1,7 @@
 -module(wes_example_count).
 
+-behaviour(wes_actor).
+
 -include("../src/wes.hrl").
 
 -export([init/1,

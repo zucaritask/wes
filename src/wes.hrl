@@ -1,9 +1,9 @@
 -record(actor_response,
-        {state_name = event,
-         state,
-         stop_after = false,
-         new_timeouts = [],
-         events = []}).
+        {state_name = event :: wes_actor:state_name(),
+         state :: wes:actor_state(),
+         stop_after = false :: boolean(),
+         new_timeouts = [] :: list(), %% FIXME: more precise
+         events = [] :: list()}). %% FIXME: more precise
 
 %% See wes_config for default values.
 -record(actor_config,
