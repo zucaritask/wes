@@ -54,7 +54,8 @@ whereis_name(Id) ->
 
 unregister_name(Id) ->
     %% Assumed called from user process.
-    {ok, _, _, _} = locker:release({channel, Id}, self()).
+    {ok, _, _, _} = locker:release({channel, Id}, self()),
+    ok.
 
 register_name(Id, Pid) ->
     case locker:lock({channel, Id}, Pid, locker_lease_duration()) of
@@ -78,7 +79,8 @@ register_actor(Id, Channel) ->
 
 unregister_actor(Id, Channel) ->
     error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),
-    {ok, _, _, _} = locker:release({actor, Id}, Channel).
+    {ok, _, _, _} = locker:release({actor, Id}, Channel),
+    ok.
 
 channel_for_actor(Id) ->
     case locker:dirty_read({actor, Id}) of
