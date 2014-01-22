@@ -64,12 +64,14 @@
     - [X] Stats
     - [X] Actor response record
 
-* Version 0.1.5 [1/2]
+* Version 0.1.5 [1/3]
   - [X] Api
     - [X] What happens when the channel starts but one of the
     starting actors can register its name?
   - [ ] Stats
     Proof of concept at this point. Make it better.
+  - [ ] Cleanup
+    - [ ] Move channel logic to separate module to make it easier to unit test.
 
 * Version 0.2 [1/4]
   The lib should be _useful when prototyping_ a wooga erlang backend.
@@ -84,7 +86,7 @@
       * Generate code from the spec.
   - [ ] Documentation
     - [ ] Write a HOWTO
-    - [ ] Make a rebar skeleton
+    - [ ] Make a rebar template
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
 
