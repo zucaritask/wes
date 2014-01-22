@@ -3,7 +3,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/2]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -15,12 +15,14 @@
 %% API functions
 %% ===================================================================
 
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(Actors, Channels) ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [Actors, Channels]).
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
-init([]) ->
-    {ok, { {one_for_one, 5, 10}, []} }.
+init([Actors, Channels]) ->
+    Config = {wes_config, {wes_config, start_link, [Actors, Channels]},
+              permanent, 2000, worker, [wes_config]},
+    {ok, { {one_for_one, 5, 10}, [Config]} }.
