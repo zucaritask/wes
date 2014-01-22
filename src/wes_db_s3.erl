@@ -1,5 +1,7 @@
 -module(wes_db_s3).
 
+-behaviour(wes_db).
+
 -export([start/1,
          stop/1]).
 

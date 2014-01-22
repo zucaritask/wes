@@ -1,5 +1,7 @@
 -module(wes_locker).
 
+-behaviour(wes_lock).
+
 %% API
 -export([start/6]).
 

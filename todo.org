@@ -57,10 +57,10 @@
 
 * Version 0.1.4 [0/2]
   Starting to settle on internal apis.
-  - [ ] Behaviours and types for callbacks and records [0/5]
+  - [-] Behaviours and types for callbacks and records [2/5]
     - [ ] Actor
-    - [ ] Db
-    - [ ] Locker
+    - [X] Db
+    - [X] Locker
     - [ ] Stats
     - [ ] Actor response record
   - [ ] API

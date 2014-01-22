@@ -1,5 +1,6 @@
 -module(wes_db_ets).
 
+-behaviour(wes_db).
 -behaviour(gen_server).
 
 %% API
@@ -50,7 +51,8 @@ read(Key, []) ->
     end.
 
 write(Key, Value, []) ->
-    ets:insert(?MODULE, {Key, Value}).
+    ets:insert(?MODULE, {Key, Value}),
+    ok.
 
 clear() ->
     ets:delete_all_objects(?MODULE).
