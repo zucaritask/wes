@@ -55,13 +55,13 @@
   - [X] Storage
     - [X] Write module for s3.
 
-* Version 0.1.4 [0/2]
+* Version 0.1.4 [0/1]
   Starting to settle on internal apis.
-  - [-] Behaviours and types for callbacks and records [2/5]
+  - [-] Behaviours and types for callbacks and records [3/5]
     - [ ] Actor
     - [X] Db
     - [X] Locker
-    - [ ] Stats
+    - [X] Stats
     - [ ] Actor response record
   - [ ] API
     - [ ] Should we check if channel is runnig before each command/read?

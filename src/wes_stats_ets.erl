@@ -1,5 +1,7 @@
 -module(wes_stats_ets).
 
+-behaviour(wes_stats).
+
 -behaviour(gen_server).
 
 %% API
