@@ -3,15 +3,7 @@
 %% API
 -export([start/1,
          stop/0,
-         start_link/1,
-         start_channel/3, start_channel/4,
-         stop_channel/1,
-         status/1,
-         command/3,
-         event/3,
-         read/3,
-         channel_timeout/1,
-         register_actor/7]).
+         start_link/1]).
 
 %% {via, , }  api.
 -export([send/2,
@@ -24,6 +16,10 @@
          actor_timeout/2,
          unregister_actor/2,
          channel_for_actor/1]).
+
+%% Channel stuff
+-export([channel_timeout/1]).
+
 
 %% ---------------------------------------------------------------------------
 %% User API
@@ -40,34 +36,6 @@ start_link(Timeout) ->
 stop() ->
     supervisor:terminate_child(wes_sup, wes_lock_ets),
     supervisor:delete_child(wes_sup, wes_lock_ets).
-
-stop_channel(ChannelName) ->
-    wes_channel:stop(ChannelName, ?MODULE).
-
-status(ChannelName) ->
-    wes_channel:status(ChannelName, ?MODULE).
-
-start_channel(ChannelName, Timeout, StatsMod) ->
-    wes_channel:start(ChannelName, ?MODULE, Timeout, StatsMod).
-
-start_channel(ChannelName, StartActors, Timeout, StatsMod) ->
-    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout, StatsMod).
-
-command(ChannelName, CmdName, CmdMessage) ->
-    wes_channel:command(ChannelName, CmdName, CmdMessage, ?MODULE).
-
-event(ChannelName, CmdName, CmdMessage) ->
-    wes_channel:event(ChannelName, CmdName, CmdMessage, ?MODULE).
-
-read(ActorName, Message, ActorLockMod) ->
-    wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).
-
-register_actor(ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod,
-               InitArgs) ->
-    wes_channel:register_actor(
-      ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod, InitArgs,
-      ?MODULE).
-
 
 %% ---------------------------------------------------------------------------
 %% Lib callback

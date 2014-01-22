@@ -1,14 +1,7 @@
 -module(wes_locker).
 
 %% API
--export([start/6,
-         start_channel/3, start_channel/4,
-         stop/1,
-         command/3,
-         event/3,
-         read/3,
-         channel_timeout/1,
-         register_actor/7]).
+-export([start/6]).
 
 %% {via, , }  api.
 -export([send/2,
@@ -22,6 +15,9 @@
          unregister_actor/2,
          channel_for_actor/1]).
 
+%% Channel stuff
+-export([channel_timeout/1]).
+
 %% ---------------------------------------------------------------------------
 %% User API
 
@@ -34,31 +30,6 @@ start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
               permanent, 2000, worker, [locker]},
     supervisor:start_child(wes_sup, Locker),
     ok = locker:set_nodes(PrimaryNodes, PrimaryNodes, Replicas).
-
-stop(ChannelName) ->
-    wes_channel:stop(ChannelName, ?MODULE).
-
-start_channel(ChannelName, Timeout, StatsMod) ->
-    wes_channel:start(ChannelName, ?MODULE, Timeout, StatsMod).
-
-start_channel(ChannelName, StartActors, Timeout, StatsMod) ->
-    wes_channel:start(ChannelName, StartActors, ?MODULE, Timeout, StatsMod).
-
-command(ChannelName, Name, Payload) ->
-    wes_channel:command(ChannelName, Name, Payload, ?MODULE).
-
-event(ChannelName, Name, Payload) ->
-    wes_channel:event(ChannelName, Name, Payload, ?MODULE).
-
-read(ActorName, Message, ActorLockMod) ->
-    wes_channel:read(ActorName, Message, ActorLockMod, ?MODULE).
-
-register_actor(ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod,
-               InitArgs) ->
-    wes_channel:register_actor(
-      ChannelName, ActorName, CbMod, DbMod, DbConf, ActorLockMod, InitArgs,
-      ?MODULE).
-
 
 %% ---------------------------------------------------------------------------
 %% Lib callback

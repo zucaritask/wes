@@ -45,15 +45,15 @@
   - [X] Channel keeps track of each timeout and sets the next one after.
   - [X] Move actor code from _channel.erl to _actor.erl
 
-* Version 0.1.3 [2/3]
+* Version 0.1.3 [3/3]
   Things I want in the lib before deside how to do the api change for v0.2
   - [X] Monitoring
     - [X] Each message should have a name.
     - [X] Stats callback
   - [X] Cleanup
     - [X] wes_tests.erl looks like crap.
-  - [ ] Storage
-    - [ ] Write module for s3.
+  - [X] Storage
+    - [X] Write module for s3.
 
 * Version 0.1.4 [0/2]
   Starting to settle on internal apis.
@@ -66,14 +66,14 @@
   - [ ] API
     - [ ] Should we check if channel is runnig before each command/read?
 
-* Version 0.2 [0/3]
+* Version 0.2 [1/4]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
   - [ ] Benchmark lib to make sure the ideas work.
     - [ ] Can we introduce channel and actor types to make the api easier?
-  - [ ] Channels
-    - [ ] Introduce a channel and actor type, channels are configured by type.
+  - [X] Channels
+    - [X] Introduce a channel and actor type, channels are configured by type.
       * Public configs ets table with:
         channel type, which should be sent to each call.
         actor type, for easier starting and moving of actors.
