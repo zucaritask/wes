@@ -30,7 +30,7 @@ key(Actorname) ->
     <<"example_counter", (atom_to_binary(Actorname, utf8))/binary>>.
 
 to_struct(_Actorname, ActorState) ->
-    integer_to_binary(ActorState).
+    list_to_binary(integer_to_list(ActorState)).
 
 from_struct({_Key, Value}) ->
-    {ok, binary_to_integer(Value)}.
+    {ok, list_to_integer(binary_to_list(Value))}.
