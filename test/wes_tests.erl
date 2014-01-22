@@ -13,7 +13,9 @@ db_test_() ->
        fun test_lock_restart/0,
        fun test_stop/0,
        fun test_bad_command/0,
-       fun test_add_actor/0
+       fun test_add_actor/0,
+       fun test_two_actors/0,
+       fun test_same_actor_twice/0
       ]}].
 
 test_setup() ->
@@ -136,6 +138,28 @@ test_bad_command() ->
     ok = wes_channel:command(ChannelType, Channel, incr, []),
     ?assertEqual({error, {negative_increment, -1}},
                  wes_channel:command(ChannelType, Channel, incr, [-1])).
+
+test_two_actors() ->
+    Channel = session1,
+    ChannelType = session,
+    Actor1 = act1,
+    Actor2 = act2,
+    ActorType = counter,
+    Actors = [{Actor1, ActorType, []}, {Actor2, ActorType, []}],
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
+    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor1, counter)),
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor2, counter)).
+
+test_same_actor_twice() ->
+    Channel1 = session1,
+    Channel2 = session2,
+    ChannelType = session,
+    Actor1 = act1,
+    ActorType = counter,
+    Actors = [{Actor1, ActorType, []}],
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
+    ?assertMatch({error, _}, wes_channel:start(ChannelType, Channel2, Actors)).
 
 test_add_actor() ->
     Channel = hej5,

@@ -30,7 +30,7 @@
 start(ChannelType, ChannelName, StartActors) ->
     #channel_config{locker_mod = LockerMod} = Config =
         wes_config:channel(ChannelType),
-    gen_server:start_link(channel_name(ChannelName, LockerMod), ?MODULE,
+    gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
                      [ChannelType, ChannelName, StartActors, Config], []).
 
 stop(ChannelType, ChannelName) ->
@@ -88,19 +88,24 @@ actor_name_to_channel(ActorName, LockerMod) ->
 
 init([ChannelType, ChannelName, ActorArgs, _Config]) ->
     Now = wes_timeout:now(),
-    #channel_config{stats_mod = StatsMod,
-                    lock_timeout_interval = LockTimeout} =
-        wes_config:channel(ChannelType),
-    {Actors, ActorTimeouts} =
-        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(), StatsMod),
-    Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
-                               wes_timeout:now(), ActorTimeouts),
-    StatsMod:stat(start, channel),
-    timeout_reply(
-      {ok, #state{name = ChannelName,
-                  type = ChannelType,
-                  timeouts = Timeouts,
-                  actors = Actors}}).
+    try
+        #channel_config{stats_mod = StatsMod,
+                        lock_timeout_interval = LockTimeout} =
+            wes_config:channel(ChannelType),
+        {Actors, ActorTimeouts} =
+            actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(),
+                        StatsMod),
+        Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
+                                   wes_timeout:now(), ActorTimeouts),
+        StatsMod:stat(start, channel),
+        timeout_reply(
+          {ok, #state{name = ChannelName,
+                      type = ChannelType,
+                      timeouts = Timeouts,
+                      actors = Actors}})
+    catch throw:Reason ->
+            {stop, Reason}
+    end.
 
 handle_call({command, CmdName, _CmdPayload, Config}, _From,
             #state{name = ChannelName,

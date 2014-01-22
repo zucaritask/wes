@@ -68,8 +68,10 @@ register_name(Id, Pid) ->
 
 register_actor(Id, Channel) ->
     error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
-    ok = wes_lock_ets_srv:lock({actor, Id}, Channel),
-    {ok, 1000}.
+    case wes_lock_ets_srv:lock({actor, Id}, Channel) of
+        ok -> {ok, 1000}; %% ??
+        {error, Reason}-> throw({error_registing_actor, Reason})
+    end.
 
 unregister_actor(Id, Channel) ->
     error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),

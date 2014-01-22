@@ -64,9 +64,9 @@
     - [X] Stats
     - [X] Actor response record
 
-* Version 0.1.5 [0/1]
-  - [ ] Api
-    - [ ] What happens when the channel starts but one of the
+* Version 0.1.5 [1/2]
+  - [X] Api
+    - [X] What happens when the channel starts but one of the
     starting actors can register its name?
   - [ ] Stats
     Proof of concept at this point. Make it better.
@@ -76,7 +76,6 @@
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
   - [ ] Benchmark lib to make sure the ideas work.
-    - [ ] Can we introduce channel and actor types to make the api easier?
   - [X] Channels
     - [X] Introduce a channel and actor type, channels are configured by type.
       * Public configs ets table with:
