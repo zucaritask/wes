@@ -26,6 +26,7 @@
        {locker_mod, wes_lock_ets},
        {lock_timeout_interval, 1000},
        {locker_conf, []},
+       {message_timeout, 50000},
        {stats_mod, wes_stats_ets}]
      ]}
    ]}

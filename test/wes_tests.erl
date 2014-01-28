@@ -15,7 +15,9 @@ db_test_() ->
        fun test_bad_command/0,
        fun test_add_actor/0,
        fun test_two_actors/0,
-       fun test_same_actor_twice/0
+       fun test_same_actor_twice/0,
+       fun test_message_timeout/0,
+       fun test_not_message_timeout/0
       ]}].
 
 test_setup() ->
@@ -40,6 +42,13 @@ test_setup() ->
           {locker_mod, wes_lock_ets},
           {locker_conf, []},
           {lock_timeout_interval, 1000},
+          {message_timeout, 50000},
+          {stats_mod, wes_stats_ets}],
+         [{id, message_timeout_session},
+          {locker_mod, wes_lock_ets},
+          {locker_conf, []},
+          {lock_timeout_interval, 2000},
+          {message_timeout, 750},
           {stats_mod, wes_stats_ets}]
         ],
     wes_sup:start_link(ActorTypes, ChannelTypes),
@@ -94,7 +103,8 @@ test_lock_restart() ->
     ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)),
     wes_channel:stop(ChannelType, Channel),
     {ok, _OtherPid} = wes_channel:start(ChannelType, Channel, Actors),
-    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)).
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
 test_ets() ->
     Channel = hej3,
@@ -111,7 +121,8 @@ test_ets() ->
     ok = wes_channel:stop(ChannelType, Channel),
     {ok, _Pid2} = wes_channel:start(ChannelType, Channel, Actors),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)).
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
 test_stop() ->
     Channel = hej4,
@@ -137,7 +148,8 @@ test_bad_command() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
     ok = wes_channel:command(ChannelType, Channel, incr, []),
     ?assertEqual({error, {negative_increment, -1}},
-                 wes_channel:command(ChannelType, Channel, incr, [-1])).
+                 wes_channel:command(ChannelType, Channel, incr, [-1])),
+    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
 
 test_two_actors() ->
     Channel = session1,
@@ -149,7 +161,8 @@ test_two_actors() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
     ok = wes_channel:command(ChannelType, Channel, incr, []),
     ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor1, counter)),
-    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor2, counter)).
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor2, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
 test_same_actor_twice() ->
     Channel1 = session1,
@@ -159,7 +172,9 @@ test_same_actor_twice() ->
     ActorType = counter,
     Actors = [{Actor1, ActorType, []}],
     {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
-    ?assertMatch({error, _}, wes_channel:start(ChannelType, Channel2, Actors)).
+    ?assertMatch({error, _}, wes_channel:start(ChannelType, Channel2, Actors)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
+    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
 
 test_add_actor() ->
     Channel = hej5,
@@ -169,4 +184,35 @@ test_add_actor() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, []),
     wes_channel:register_actor(ChannelType, Channel, ActorType, Actor, []),
     ok = wes_channel:command(ChannelType, Channel, incr, []),
-    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)).
+    ?assertEqual(1, wes_channel:read(ChannelType, ActorType, Actor, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+
+test_message_timeout() ->
+    Channel = hej6,
+    ChannelType = message_timeout_session,
+    Actor = act6,
+    ActorType = counter,
+    Actors = [{Actor, ActorType, []}],
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
+    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    error_logger:error_msg("before sleep tab ~p",
+                           [ets:tab2list(wes_lock_ets_srv)]),
+    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    timer:sleep(1000),
+    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
+
+test_not_message_timeout() ->
+    Channel = hej6,
+    ChannelType = message_timeout_session,
+    Actor = act6,
+    ActorType = counter,
+    Actors = [{Actor, ActorType, []}],
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
+    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    error_logger:error_msg("before sleep tab ~p",
+                           [ets:tab2list(wes_lock_ets_srv)]),
+    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    timer:sleep(600),
+    _ = wes_channel:read(ChannelType, ActorType, Actor, counter),
+    timer:sleep(600),
+    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)).

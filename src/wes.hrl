@@ -15,4 +15,5 @@
 -record(channel_config,
         {locker_mod,
          stats_mod,
+         message_timeout,
          lock_timeout_interval}).
