@@ -156,32 +156,14 @@ handle_cast(_Msg, State) ->
 
 handle_info(timeout, #state{timeouts = Timeouts} = State) ->
     {Name, _} = wes_timeout:next(Timeouts),
+    Now = wes_timeout:now(),
     %% FIXME: Check if the times match.
-    handle_timeout(Name, State);
+    channel__timeout(Name, Now, State);
 handle_info(_Info, State) ->
     timeout_reply({noreply, State}).
 
-terminate(normal, #state{type = ChannelType, name = Name, actors = Actors}) ->
-    #channel_config{
-       locker_mod = LockerMod,
-       stats_mod = StatsMod} = wes_config:channel(ChannelType),
-    StatsMod:stat(stop, normal),
-    lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors),
-    lists:foreach(
-      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
-      Actors),
-    channel_deregister_name(Name, LockerMod),
-    ok;
-terminate(Reason, #state{type = ChannelType, name = Name, actors = Actors}) ->
-    #channel_config{
-       locker_mod = LockerMod,
-       stats_mod = StatsMod} = wes_config:channel(ChannelType),
-    StatsMod:stat(stop, error),
-    error_logger:error_msg("Reason ~p", [Reason]),
-    lists:foreach(
-      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
-      Actors),
-    channel_deregister_name(Name, LockerMod),
+terminate(Reason, State) ->
+    channel__stop(Reason, State),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -190,28 +172,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-handle_timeout(channel_lock_timeout = TimeoutName,
-               #state{timeouts = Timeouts,
-                      type = ChannelType,
-                      name = ChannelName} = State) ->
-    #channel_config{
-       locker_mod = LockerMod,
-       stats_mod = StatsMod} = wes_config:channel(ChannelType),
-
-    StatsMod:stat(timeout, channel_lock),
-    channel_lock_timeout(ChannelName, LockerMod),
-    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
-    timeout_reply({noreply, State});
-handle_timeout({actor_timeout, ActorName, TimeoutData} = TimeoutName,
-               #state{actors = Actors,
-                      type = ChannelType,
-                      timeouts = Timeouts} = State) ->
-    #channel_config{stats_mod = StatsMod} = wes_config:channel(ChannelType),
-    StatsMod:stat(timeout, actor_timeout),
-    wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
-    wes_timeout:reset(TimeoutName, wes_timeout:now(), Timeouts),
-    timeout_reply({noreply, State}).
 
 timeout_reply({noreply, State}) ->
     {noreply, State, do_timeout_reply(State)};
@@ -305,3 +265,42 @@ channel__register_actor(ActorName, ActorType, InitArgs,
                     Now, Timeouts, StatsMod),
     NewActors = wes_actor:list_add(ActorName, Actor, Actors),
     State#state{actors = NewActors, timeouts = NewTimeouts}.
+
+channel__stop(Reason, State) ->
+    #state{type = ChannelType, name = Name, actors = Actors} = State,
+    #channel_config{
+       locker_mod = LockerMod,
+       stats_mod = StatsMod} = wes_config:channel(ChannelType),
+    if Reason =:= normal ->
+            StatsMod:stat(stop, normal),
+            lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors);
+       true ->
+            StatsMod:stat(stop, error)
+    end,
+    lists:foreach(
+      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
+      Actors),
+    channel_deregister_name(Name, LockerMod).
+
+channel__timeout(channel_lock_timeout = TimeoutName,
+               Now,
+               #state{timeouts = Timeouts,
+                      type = ChannelType,
+                      name = ChannelName} = State) ->
+    #channel_config{
+       locker_mod = LockerMod,
+       stats_mod = StatsMod} = wes_config:channel(ChannelType),
+    StatsMod:stat(timeout, channel),
+    channel_lock_timeout(ChannelName, LockerMod),
+    wes_timeout:reset(TimeoutName, Now, Timeouts),
+    timeout_reply({noreply, State});
+channel__timeout({actor_timeout, ActorName, TimeoutData} = TimeoutName,
+               Now,
+               #state{actors = Actors,
+                      type = ChannelType,
+                      timeouts = Timeouts} = State) ->
+    #channel_config{stats_mod = StatsMod} = wes_config:channel(ChannelType),
+    StatsMod:stat(timeout, actor),
+    wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
+    wes_timeout:reset(TimeoutName, Now, Timeouts),
+    timeout_reply({noreply, State}).
