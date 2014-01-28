@@ -7,6 +7,7 @@
          reset/3,
          new/0,
          add/4,
+         to_list/1,
          now/0,
          time_diff/2]).
 
@@ -19,6 +20,9 @@ next(Timeouts) ->
               end,
               {bogus, infinity},
               Timeouts).
+
+to_list(Timeouts) ->
+    dict:to_list(Timeouts).
 
 reset(Name, Now, Timeouts) ->
     dict:update(Name, fun({_OldTimeout, Timeout}) ->

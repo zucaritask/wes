@@ -1,13 +1,7 @@
 -module(wes_actor).
 
 -include("wes.hrl").
-
--record(actor,
-        {name,
-         type,
-         state,
-         state_name = event
-         }).
+-include("wes_actor.hrl").
 
 -export([init/2,
          save/1,
