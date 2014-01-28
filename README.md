@@ -1,5 +1,6 @@
 # wes
 This is a work in progress. See todo.org for more details.
+[![Build Status](https://travis-ci.org/wooga/wes.png?branch=master)](https://travis-ci.org/wooga/wes)
 
 ## Introduction
 Wes is a library that helps you to build actor based services in erlang.
