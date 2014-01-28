@@ -55,8 +55,14 @@
   - [X] Storage
     - [X] Write module for s3.
 
-* Version 0.1.4 [1/1]
+* Version 0.1.4 [2/2]
   Starting to settle on internal apis.
+  - [X] Channels
+    - [X] Introduce a channel and actor type, channels are configured by type.
+      * Public configs ets table with:
+        channel type, which should be sent to each call.
+        actor type, for easier starting and moving of actors.
+      * Generate code from the spec.
   - [X] Behaviours and types for callbacks and records [5/5]
     - [X] Actor
     - [X] Db
@@ -72,22 +78,19 @@
     - [X] Move channel logic to separate module to make it easier to unit test.
   - [X] Bugfix: Stop actor when no new messages within time span.
 
-* Version 0.2 [1/4]
+* Version 0.2 [0/2]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
-  - [ ] Benchmark lib to make sure the ideas work.
-  - [X] Channels
-    - [X] Introduce a channel and actor type, channels are configured by type.
-      * Public configs ets table with:
-        channel type, which should be sent to each call.
-        actor type, for easier starting and moving of actors.
-      * Generate code from the spec.
   - [ ] Documentation
     - [ ] Write a HOWTO
     - [ ] Make a rebar template
+    - [ ] Make a example application
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
+
+* Version 0.2.1 [0/1]
+  - [ ] Benchmark lib to make sure the ideas work.
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.
@@ -95,7 +98,7 @@
     - [ ] Handover of actors between channels
   - [ ] Actors
     - [ ] Mature handling of FSM for actors.
-  - [ ] Events [0/2]
+  - [ ] Events
     - [ ] Actors can send events to channels before the current command is over.
     - [ ] Events to current channel is either sync or not sent as a message.
   - [ ] Observable?
