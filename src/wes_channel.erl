@@ -89,48 +89,23 @@ actor_name_to_channel(ActorName, LockerMod) ->
 init([ChannelType, ChannelName, ActorArgs, _Config]) ->
     Now = wes_timeout:now(),
     try
-        #channel_config{stats_mod = StatsMod,
-                        lock_timeout_interval = LockTimeout} =
-            wes_config:channel(ChannelType),
-        {Actors, ActorTimeouts} =
-            actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(),
-                        StatsMod),
-        Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
-                                   wes_timeout:now(), ActorTimeouts),
-        StatsMod:stat(start, channel),
-        timeout_reply(
-          {ok, #state{name = ChannelName,
-                      type = ChannelType,
-                      timeouts = Timeouts,
-                      actors = Actors}})
+        State = channel__init(ChannelType, ChannelName, ActorArgs, Now),
+        timeout_reply({ok, State})
     catch throw:Reason ->
             {stop, Reason}
     end.
 
 handle_call({command, CmdName, _CmdPayload, Config}, _From,
-            #state{name = ChannelName,
-                   actors = []} = State) ->
-    #channel_config{stats_mod = StatsMod} = Config,
-    error_logger:error_msg("Channel has no actors ~p got command ~p",
-                           [ChannelName, CmdName]),
-    StatsMod:stat(command, CmdName),
+            #state{actors = []} = State) ->
+    channel__dead_letter_handle(CmdName, Config, State),
     timeout_reply({reply, ok, State});
-handle_call({command, CmdName, CmdPayload, Config}, _From,
-            #state{name = ChannelName,
-                   actors = Actors} = State) ->
+handle_call({command, CmdName, CmdPayload, Config}, _From, State) ->
     #channel_config{stats_mod = StatsMod} = Config,
     try
-        {NewActors, ShouldStop} =
-            lists:mapfoldl(
-              fun(A0, Stop) ->
-                      {Actor, AStop} = wes_actor:act(A0, CmdName, CmdPayload),
-                      {Actor, Stop or AStop}
-              end,
-              false,
-              Actors),
+        {NewActors, ShouldStop} = channel__command(CmdName, CmdPayload, State),
         if ShouldStop ->
                 error_logger:info_msg("stop command ~p:~p",
-                                      [ChannelName, CmdName]),
+                                      [State#state.name, CmdName]),
                 {stop, normal, ok, State#state{actors = NewActors}};
            true ->
                 timeout_reply({reply, ok, State#state{actors = NewActors}})
@@ -141,23 +116,15 @@ handle_call({command, CmdName, CmdPayload, Config}, _From,
         StatsMod:stat(command, CmdName)
     end;
 handle_call({read, ActorName, Name, ChannelConfig, ActorConfig}, _From,
-            #state{actors = Actors} = State) ->
-    #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    Actor = wes_actor:list_get(ActorName, Actors),
-    Reply = wes_actor:read(Actor, Name, ActorConfig),
-    StatsMod:stat(read, Name),
+            State) ->
+    Reply = channel__read(ActorName, Name, ChannelConfig, ActorConfig, State),
     timeout_reply({reply, Reply, State});
 handle_call({register_actor, ActorName, ActorType, InitArgs, Config},
-            _From, #state{actors = Actors, name = ChannelName,
-                          timeouts = Timeouts} = State) ->
-    #channel_config{stats_mod = StatsMod} = Config,
+            _From, State) ->
     Now = wes_timeout:now(),
     try
-        {[Actor], NewTimeouts} =
-            actor_inits(ChannelName, [{ActorName, ActorType, InitArgs}],
-                        Now, Timeouts, StatsMod),
-        NewActors = wes_actor:list_add(ActorName, Actor, Actors),
-        NewState = State#state{actors = NewActors, timeouts = NewTimeouts},
+        NewState = channel__register_actor(ActorName, ActorType, InitArgs,
+                                           Config, Now, State),
         timeout_reply({reply, ok, NewState})
     catch throw:Reason ->
             error_logger:info_msg("Error ~p", [Reason]),
@@ -167,22 +134,16 @@ handle_call(stop, _From, State) ->
     error_logger:info_msg("Stop command", []),
     {stop, normal, ok, State}.
 
-handle_cast({event, EvName, EvPayload, ChannelConfig},
-            #state{actors = Actors} = State) ->
+handle_cast({event, EvName, EvPayload, ChannelConfig}, State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
     try
-        {NewActors, ShouldStop} =
-            lists:mapfoldl(
-              fun(A0, Stop) ->
-                      {Actor, AStop} = wes_actor:act(A0, EvName, EvPayload),
-                      {Actor, Stop or AStop}
-              end,
-              false,
-              Actors),
+        {NewActors, ShouldStop} = channel__command(EvName, EvPayload, State),
         if ShouldStop ->
-                timeout_reply({noreply, State#state{actors = NewActors}});
+                error_logger:info_msg("stop event ~p:~p",
+                                      [State#state.name, EvName]),
+                {stop, normal, State#state{actors = NewActors}};
            true ->
-                {stop, normal, State#state{actors = NewActors}}
+                timeout_reply({noreply, State#state{actors = NewActors}})
         end
     catch throw:_Reason ->
             error_logger:info_msg("Error ~p", [_Reason]),
@@ -263,6 +224,33 @@ do_timeout_reply(#state{timeouts = Timeouts}) ->
     {_Name, Time} = wes_timeout:next(Timeouts),
     wes_timeout:time_diff(Time, wes_timeout:now()).
 
+%% ---------------------------------------------------------------------------
+%% Naming of channels
+
+channel_deregister_name(ChannelName, LockerMod) ->
+    LockerMod:unregister_name(ChannelName).
+
+channel_lock_timeout(Channel, LockerMod) ->
+    LockerMod:channel_timeout(Channel).
+
+%% ---------------------------------------------------------------------------
+%% Channel logic
+
+channel__init(ChannelType, ChannelName, ActorArgs, Now) ->
+    #channel_config{stats_mod = StatsMod,
+                    lock_timeout_interval = LockTimeout} =
+        wes_config:channel(ChannelType),
+    {Actors, ActorTimeouts} =
+        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(),
+                    StatsMod),
+    Timeouts = wes_timeout:add(channel_lock_timeout, LockTimeout,
+                               Now, ActorTimeouts),
+    StatsMod:stat(start, channel),
+    #state{name = ChannelName,
+           type = ChannelType,
+           timeouts = Timeouts,
+           actors = Actors}.
+
 actor_inits(ChannelName, ActorArgs, Now, Timeouts, StatsMod) ->
     lists:mapfoldl(
       fun(Act, TAcc0) ->
@@ -283,11 +271,37 @@ actor_inits(ChannelName, ActorArgs, Now, Timeouts, StatsMod) ->
       Timeouts,
       ActorArgs).
 
-%% ---------------------------------------------------------------------------
-%% Naming of channels
+channel__dead_letter_handle(CmdName, Config, State) ->
+    #state{name = ChannelName} = State,
+    #channel_config{stats_mod = StatsMod} = Config,
+    error_logger:error_msg("Channel has no actors ~p got command ~p",
+                           [ChannelName, CmdName]),
+    StatsMod:stat(command, CmdName).
 
-channel_deregister_name(ChannelName, LockerMod) ->
-    LockerMod:unregister_name(ChannelName).
+channel__command(CmdName, CmdPayload, State) ->
+    #state{actors = Actors} = State,
+    lists:mapfoldl(
+      fun(A0, Stop) ->
+              {Actor, AStop} = wes_actor:act(A0, CmdName, CmdPayload),
+              {Actor, Stop or AStop}
+      end,
+      false,
+      Actors).
 
-channel_lock_timeout(Channel, LockerMod) ->
-    LockerMod:channel_timeout(Channel).
+channel__read(ActorName, Name, ChannelConfig, ActorConfig, State) ->
+    #state{actors = Actors} = State,
+    #channel_config{stats_mod = StatsMod} = ChannelConfig,
+    Actor = wes_actor:list_get(ActorName, Actors),
+    StatsMod:stat(read, Name),
+    wes_actor:read(Actor, Name, ActorConfig).
+
+channel__register_actor(ActorName, ActorType, InitArgs,
+                        Config, Now, State) ->
+    #state{actors = Actors, name = ChannelName,
+           timeouts = Timeouts} = State,
+    #channel_config{stats_mod = StatsMod} = Config,
+    {[Actor], NewTimeouts} =
+        actor_inits(ChannelName, [{ActorName, ActorType, InitArgs}],
+                    Now, Timeouts, StatsMod),
+    NewActors = wes_actor:list_add(ActorName, Actor, Actors),
+    State#state{actors = NewActors, timeouts = NewTimeouts}.
