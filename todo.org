@@ -78,9 +78,9 @@
     - [X] Move channel logic to separate module to make it easier to unit test.
   - [X] Bugfix: Stop actor when no new messages within time span.
 
-* Version 0.1.6 [0/3]
+* Version 0.1.6 [1/2]
   Make it easier to use
-  - [ ] Don't have channel type in actor read call.
+  - [X] Don't have channel type in actor read call.
   - [ ] wes_channel:ensure_actor(...)
 
 * Version 0.2 [0/3]

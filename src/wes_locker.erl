@@ -12,9 +12,9 @@
          register_name/2]).
 
 %% Actor stuff
--export([register_actor/2,
-         actor_timeout/2,
-         unregister_actor/2,
+-export([register_actor/3,
+         actor_timeout/3,
+         unregister_actor/3,
          channel_for_actor/1]).
 
 %% Channel stuff
@@ -68,30 +68,30 @@ register_name(Id, Pid) ->
 locker_lease_duration() ->
     1000 * 60 * 5. %% fixme config.
 
-register_actor(Id, Channel) ->
-    error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
-    case locker:lock({actor, Id}, Channel, locker_lease_duration()) of
+register_actor(Id, ChannelType, ChannelName) ->
+    case locker:lock({actor, Id}, {ChannelType, ChannelName},
+                     locker_lease_duration()) of
         {ok, _, _, _} ->
             {ok, 1000};
         {error, no_quorum} ->
             {error, no_quorum}
     end.
 
-unregister_actor(Id, Channel) ->
-    error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),
-    {ok, _, _, _} = locker:release({actor, Id}, Channel),
+unregister_actor(Id, ChannelType, ChannelName) ->
+    {ok, _, _, _} = locker:release({actor, Id}, {ChannelType, ChannelName}),
     ok.
 
 channel_for_actor(Id) ->
     case locker:dirty_read({actor, Id}) of
-        {ok, Channel} ->
-            Channel;
+        {ok, {ChannelType, ChannelName}} ->
+            {ChannelType, ChannelName};
         {error, not_found} ->
             undefined
     end.
 
-actor_timeout(Name, Channel) ->
-    locker:extend_lease({actor, Name}, Channel, locker_lease_duration()).
+actor_timeout(Name, ChannelType, ChannelName) ->
+    locker:extend_lease({actor, Name}, {ChannelType, ChannelName},
+                        locker_lease_duration()).
 
 channel_timeout(Channel) ->
     locker:extend_lease(Channel, self(), locker_lease_duration()).

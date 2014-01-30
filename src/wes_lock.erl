@@ -10,17 +10,19 @@
 -callback register_name(ChannelName::any(), Pid::pid()) -> yes.
 
 %% Actor stuff
--callback register_actor(ActorName::any(), ChannelName::any()) ->
+-callback register_actor(ActorName::any(), ChannelType::any(),
+                         ChannelName::any()) ->
     {ok, Timeout::integer()}. %% what?
 
--callback actor_timeout(ActorName::any(), ChannelName::any()) ->
+-callback actor_timeout(ActorName::any(), ChannelType::any(),
+                        ChannelName::any()) ->
     ok | {error, Reason::atom()}.
 
--callback unregister_actor(ActorName::any(), ChannelName::any()) -> ok.
+-callback unregister_actor(ActorName::any(), ChannelType::any(),
+                           ChannelName::any()) -> ok.
 
 -callback channel_for_actor(ActorName::any()) ->
-    ChannelName::any() | undefined.
-%% fixme: bad api.
+    {ChannelType::any(), ChannelName::any()} | undefined.
 
 -callback channel_timeout(ChannelName::any()) ->
     ok | {error, Reason::atom()}.

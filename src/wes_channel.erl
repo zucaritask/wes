@@ -9,7 +9,7 @@
          stop/2,
          command/4,
          event/4,
-         read/4,
+         read/3,
          status/2,
          register_actor/5]).
 
@@ -56,14 +56,15 @@ event(ChannelType, ChannelName, EvName, EvPayload) ->
     gen_server:cast(channel_name(ChannelName, LockerMod),
                     {event, EvName, EvPayload, ChannelConfig}).
 
-read(ChannelType, ActorType, ActorName, Message) ->
-    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
-        wes_config:channel(ChannelType),
+read(ActorType, ActorName, Message) ->
     #actor_config{locker_mod = ActorLockerMod} = ActorConfig =
         wes_config:actor(ActorType),
+    {ChannelType, ChannelName} =
+        actor_name_to_channel(ActorName, ActorLockerMod),
+    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+        wes_config:channel(ChannelType),
     gen_server:call(
-      channel_name(actor_name_to_channel(ActorName, ActorLockerMod),
-                   ChannelLockerMod),
+      channel_name(ChannelName, ChannelLockerMod),
       {read, ActorName, Message, ChannelConfig, ActorConfig}).
 
 register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
@@ -132,7 +133,7 @@ handle_call({register_actor, ActorName, ActorType, InitArgs, Config},
     Now = wes_timeout:now(),
     try
         State2 = channel__register_actor(ActorName, ActorType, InitArgs,
-                                           Config, Now, State),
+                                         Config, Now, State),
         State3 = update_message_timeout(State2, Now),
         timeout_reply({reply, ok, State3})
     catch throw:Reason ->
@@ -226,7 +227,7 @@ channel__init(ChannelType, ChannelName, ActorArgs, Now, ChannelConfig) ->
                     message_timeout = MessageTimeout,
                     lock_timeout_interval = LockTimeout} = ChannelConfig,
     {Actors, ActorTimeouts} =
-        actor_inits(ChannelName, ActorArgs, Now, wes_timeout:new(),
+        actor_inits(ChannelType, ChannelName, ActorArgs, Now, wes_timeout:new(),
                     StatsMod),
     Timeouts =
         wes_timeout:add(message_timeout, MessageTimeout, Now,
@@ -238,10 +239,10 @@ channel__init(ChannelType, ChannelName, ActorArgs, Now, ChannelConfig) ->
            timeouts = Timeouts,
            actors = Actors}.
 
-actor_inits(ChannelName, ActorArgs, Now, Timeouts, StatsMod) ->
+actor_inits(ChannelType, ChannelName, ActorArgs, Now, Timeouts, StatsMod) ->
     lists:mapfoldl(
       fun(Act, TAcc0) ->
-              {Actor, TimeOuts} = wes_actor:init(ChannelName, Act),
+              {Actor, TimeOuts} = wes_actor:init(ChannelType, ChannelName, Act),
               StatsMod:stat(start, actor),
               NewTacc =
                   lists:foldl(
@@ -285,16 +286,17 @@ channel__read(ActorName, Name, ChannelConfig, ActorConfig, State) ->
 channel__register_actor(ActorName, ActorType, InitArgs,
                         Config, Now, State) ->
     #state{actors = Actors, name = ChannelName,
-           timeouts = Timeouts} = State,
+           timeouts = Timeouts, type = ChannelType} = State,
     #channel_config{stats_mod = StatsMod} = Config,
     {[Actor], NewTimeouts} =
-        actor_inits(ChannelName, [{ActorName, ActorType, InitArgs}],
+        actor_inits(ChannelType, ChannelName,
+                    [{ActorName, ActorType, InitArgs}],
                     Now, Timeouts, StatsMod),
     NewActors = wes_actor:list_add(ActorName, Actor, Actors),
     State#state{actors = NewActors, timeouts = NewTimeouts}.
 
 channel__stop(Reason, ChannelConfig, State) ->
-    #state{name = Name, actors = Actors} = State,
+    #state{type = ChannelType, name = Name, actors = Actors} = State,
     #channel_config{
        locker_mod = LockerMod,
        stats_mod = StatsMod} = ChannelConfig,
@@ -305,7 +307,7 @@ channel__stop(Reason, ChannelConfig, State) ->
             StatsMod:stat(stop, error)
     end,
     lists:foreach(
-      fun(A0) -> wes_actor:deregister_name(A0, Name) end,
+      fun(A0) -> wes_actor:deregister_name(A0, ChannelType, Name) end,
       Actors),
     channel_deregister_name(Name, LockerMod).
 

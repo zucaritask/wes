@@ -14,9 +14,9 @@
          register_name/2]).
 
 %% Actor stuff
--export([register_actor/2,
-         actor_timeout/2,
-         unregister_actor/2,
+-export([register_actor/3,
+         actor_timeout/3,
+         unregister_actor/3,
          channel_for_actor/1]).
 
 %% Channel stuff
@@ -66,27 +66,29 @@ register_name(Id, Pid) ->
     ok = wes_lock_ets_srv:lock({channel, Id}, Pid),
     yes.
 
-register_actor(Id, Channel) ->
-    error_logger:info_msg("registring actor ~p ~p", [Id, Channel]),
-    case wes_lock_ets_srv:lock({actor, Id}, Channel) of
-        ok -> {ok, 1000}; %% ??
+register_actor(Id, ChannelType, ChannelName) ->
+    error_logger:info_msg("registring actor ~p ~p ~p",
+                          [Id, ChannelType, ChannelName]),
+    case wes_lock_ets_srv:lock({actor, Id}, {ChannelType, ChannelName}) of
+        ok -> {ok, 1000}; %% FIXME ??
         {error, Reason}-> throw({error_registing_actor, Reason})
     end.
 
-unregister_actor(Id, Channel) ->
-    error_logger:info_msg("unregistring actor ~p ~p", [Id, Channel]),
-    ok = wes_lock_ets_srv:release({actor, Id}, Channel).
+unregister_actor(Id, ChannelType, ChannelName) ->
+    error_logger:info_msg("unregistring actor ~p ~p ~p",
+                          [Id, ChannelType, ChannelName]),
+    ok = wes_lock_ets_srv:release({actor, Id}, {ChannelType, ChannelName}).
 
 channel_for_actor(Id) ->
     case wes_lock_ets_srv:read({actor, Id}) of
-        {ok, Channel} ->
-            Channel;
+        {ok, {ChannelType, ChannelName}} ->
+            {ChannelType, ChannelName};
         {error, not_found} ->
             undefined
     end.
 
-actor_timeout(Name, Channel) ->
-    wes_lock_ets_srv:extend_lease({actor, Name}, Channel).
+actor_timeout(Name, ChannelType, ChannelName) ->
+    wes_lock_ets_srv:extend_lease({actor, Name}, {ChannelType, ChannelName}).
 
 channel_timeout(Channel) ->
     wes_lock_ets_srv:extend_lease(Channel, self()).

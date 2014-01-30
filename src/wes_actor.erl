@@ -3,7 +3,7 @@
 -include("wes.hrl").
 -include("wes_actor.hrl").
 
--export([init/2,
+-export([init/3,
          save/1,
          read/2, read/3,
          act/3,
@@ -13,8 +13,8 @@
 -export([list_add/3,
          list_get/2]).
 
--export([register_name/3,
-         deregister_name/2,
+-export([register_name/4,
+         deregister_name/3,
          timeout/2]).
 
 -type state_name()  :: any().
@@ -33,7 +33,7 @@
 -callback from_struct({Key::wes_db:key(), wes:serialized_actor()}) ->
     {ok, ActorState::wes:actor_state()}.
 
-init(ChannelName, {ActorName, Type, InitArgs}) ->
+init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
     #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf= DbConf,
                   locker_mod = LockerMod} = wes_config:actor(Type),
     Response =
@@ -43,8 +43,9 @@ init(ChannelName, {ActorName, Type, InitArgs}) ->
             not_found ->
                 response(ActorCb:init(InitArgs))
         end,
-    {ok, LockDuration} = register_name(ActorName, ChannelName, LockerMod),
-    Timeouts = [{{lock, ChannelName}, LockDuration} |
+    {ok, LockDuration} = register_name(ActorName, ChannelType, ChannelName,
+                                       LockerMod),
+    Timeouts = [{{lock, ChannelType, ChannelName}, LockDuration} |
                 Response#actor_response.new_timeouts],
     {#actor{name = ActorName,
             type = Type,
@@ -86,20 +87,19 @@ act(#actor{state_name = StateName, type = Type, state = ActorState} = Actor,
                  state = Response#actor_response.state},
      Response#actor_response.stop_after}.
 
-register_name(Name, Channel, LockerMod) ->
-    LockerMod:register_actor(Name, Channel).
+register_name(Name, ChannelType, ChannelName, LockerMod) ->
+    LockerMod:register_actor(Name, ChannelType, ChannelName).
 
 deregister_name(#actor{name = Name, type = Type} = _Actor,
-                      Channel) ->
+                ChannelType, ChannelName) ->
     #actor_config{locker_mod = LockerMod} = wes_config:actor(Type),
-    LockerMod:unregister_actor(Name, Channel).
-
+    LockerMod:unregister_actor(Name, ChannelType, ChannelName).
 
 %% FIXME: Cleanup the response from this function.
 timeout(#actor{name = Name, type = Type, state = State} = Actor,
-        {lock, Channel}) ->
+        {lock, ChannelType, ChannelName}) ->
     #actor_config{locker_mod = LockerMod} = wes_config:actor(Type),
-    ok = LockerMod:actor_timeout(Name, Channel),
+    ok = LockerMod:actor_timeout(Name, ChannelType, ChannelName),
     Response = response({ok, State}),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
