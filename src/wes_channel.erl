@@ -178,6 +178,8 @@ handle_info(timeout, #state{type = ChannelType,
             timeout_reply({noreply, NewState})
     end;
 handle_info(_Info, State) ->
+    %% FIXME: Broadcast info to actors that have exported some info
+    %% handling function.
     timeout_reply({noreply, State}).
 
 terminate(Reason, #state{type = ChannelType} = State) ->

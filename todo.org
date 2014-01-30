@@ -78,7 +78,12 @@
     - [X] Move channel logic to separate module to make it easier to unit test.
   - [X] Bugfix: Stop actor when no new messages within time span.
 
-* Version 0.2 [0/2]
+* Version 0.1.6 [0/3]
+  Make it easier to use
+  - [ ] Don't have channel type in actor read call.
+  - [ ] wes_channel:ensure_actor(...)
+
+* Version 0.2 [0/3]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
@@ -88,8 +93,6 @@
     - [ ] Make a example application
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
-
-* Version 0.2.1 [0/1]
   - [ ] Benchmark lib to make sure the ideas work.
 
 * Version 0.3 [0/2]

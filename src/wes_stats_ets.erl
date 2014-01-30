@@ -6,6 +6,7 @@
 
 %% API
 -export([start_link/0,
+         start/0,
          stop/0,
          all_stats/0]).
 
@@ -25,6 +26,12 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+start() ->
+    Spec = {?MODULE, {?MODULE, start_link, []},
+            permanent, 2000, worker, [?MODULE]},
+    {ok, _} = supervisor:start_child(wes_sup, Spec),
+    ok.
 
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
