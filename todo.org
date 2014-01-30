@@ -94,6 +94,7 @@
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
   - [ ] Benchmark lib to make sure the ideas work.
+  - [ ] Consume all timeouts that have expired when getting a timeout message.
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.

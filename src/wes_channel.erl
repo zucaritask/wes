@@ -11,7 +11,8 @@
          event/4,
          read/3,
          status/2,
-         register_actor/5]).
+         register_actor/5,
+         ensure_actor/5]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -72,6 +73,13 @@ register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
         wes_config:channel(ChannelType),
     gen_server:call(channel_name(ChannelName, ChannelLockerMod),
                     {register_actor, ActorName, ActorType, InitArgs,
+                     ChannelConfig}).
+
+ensure_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
+    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+        wes_config:channel(ChannelType),
+    gen_server:call(channel_name(ChannelName, ChannelLockerMod),
+                    {ensure_actor, ActorName, ActorType, InitArgs,
                      ChannelConfig}).
 
 %% ---------------------------------------------------------------------------
@@ -136,6 +144,23 @@ handle_call({register_actor, ActorName, ActorType, InitArgs, Config},
                                          Config, Now, State),
         State3 = update_message_timeout(State2, Now),
         timeout_reply({reply, ok, State3})
+    catch throw:Reason ->
+            error_logger:info_msg("Error ~p", [Reason]),
+            {stop, normal, {error, Reason}, State}
+    end;
+handle_call({ensure_actor, ActorName, ActorType, InitArgs, Config},
+            _From, #state{actors = Actors} = State) ->
+    Now = wes_timeout:now(),
+    try
+        case wes_actor:list_find(ActorName, Actors) of
+            {ok, _} ->
+                timeout_reply({reply, ok, State});
+            false ->
+                State2 = channel__register_actor(ActorName, ActorType, InitArgs,
+                                                 Config, Now, State),
+                State3 = update_message_timeout(State2, Now),
+                timeout_reply({reply, ok, State3})
+        end
     catch throw:Reason ->
             error_logger:info_msg("Error ~p", [Reason]),
             {stop, normal, {error, Reason}, State}

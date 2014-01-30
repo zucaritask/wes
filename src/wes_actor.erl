@@ -11,7 +11,8 @@
          ]).
 
 -export([list_add/3,
-         list_get/2]).
+         list_get/2,
+         list_find/2]).
 
 -export([register_name/4,
          deregister_name/3,
@@ -70,6 +71,14 @@ list_add(ActorName, Actor, Actors) ->
 list_get(ActorName, Actors) ->
     {value, Actor} = lists:keysearch(ActorName, #actor.name, Actors),
     Actor.
+
+list_find(ActorName, Actors) ->
+    case lists:keysearch(ActorName, #actor.name, Actors) of
+        {value, Actor} ->
+            {ok, Actor};
+        false ->
+            false
+    end.
 
 read(#actor{type = Type} = Actor, Message) ->
     read(Actor, Message, wes_config:actor(Type)).

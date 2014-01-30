@@ -17,7 +17,8 @@ db_test_() ->
        fun test_two_actors/0,
        fun test_same_actor_twice/0,
        fun test_message_timeout/0,
-       fun test_not_message_timeout/0
+       fun test_not_message_timeout/0,
+       fun test_ensure_actor/0
       ]}].
 
 test_setup() ->
@@ -216,3 +217,12 @@ test_not_message_timeout() ->
     _ = wes_channel:read(ActorType, Actor, counter),
     timer:sleep(600),
     ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)).
+
+test_ensure_actor() ->
+    Channel = hej7,
+    ChannelType = session,
+    Actor = act7,
+    ActorType = counter,
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel, []),
+    ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []),
+    ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []).
