@@ -94,7 +94,8 @@ act(#actor{state_name = StateName, type = Type, state = ActorState} = Actor,
                                       ActorState)),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
-     Response#actor_response.stop_after}.
+     Response#actor_response.stop_channel,
+     Response#actor_response.stop_actor}.
 
 register_name(Name, ChannelType, ChannelName, LockerMod) ->
     LockerMod:register_actor(Name, ChannelType, ChannelName).
@@ -112,17 +113,17 @@ timeout(#actor{name = Name, type = Type, state = State} = Actor,
     Response = response({ok, State}),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
-     Response#actor_response.stop_after};
+     Response#actor_response.stop_channel};
 timeout(#actor{state_name = StateName, type = Type,
                state = ActorState} = Actor, Name) ->
     #actor_config{cb_mod = CbMod} = wes_config:actor(Type),
     Response = response(CbMod:timeout(StateName, Name, ActorState)),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
-     Response#actor_response.stop_after}.
+     Response#actor_response.stop_channel}.
 
 response(#actor_response{} = Response) -> Response;
 response({stop, NewState}) ->
     %% FIXME: Looses trace of state_name.
-    #actor_response{state = NewState, stop_after = true};
+    #actor_response{state = NewState, stop_channel = true};
 response({ok, NewState}) -> #actor_response{state = NewState}.

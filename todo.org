@@ -78,10 +78,14 @@
     - [X] Move channel logic to separate module to make it easier to unit test.
   - [X] Bugfix: Stop actor when no new messages within time span.
 
-* Version 0.1.6 [1/2]
+* Version 0.1.6 [2/2]
   Make it easier to use
   - [X] Don't have channel type in actor read call.
-  - [ ] wes_channel:ensure_actor(...)
+  - [X] wes_channel:ensure_actor(...)
+
+* Version 0.1.7 [2/2]
+  - [X] Actors should be anble to stop themselfs without stopping the channel.
+  - [X] Nice error message when trying to read from a actor that isn't active.
 
 * Version 0.2 [0/3]
   The lib should be _useful when prototyping_ a wooga erlang backend.

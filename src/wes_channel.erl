@@ -60,13 +60,16 @@ event(ChannelType, ChannelName, EvName, EvPayload) ->
 read(ActorType, ActorName, Message) ->
     #actor_config{locker_mod = ActorLockerMod} = ActorConfig =
         wes_config:actor(ActorType),
-    {ChannelType, ChannelName} =
-        actor_name_to_channel(ActorName, ActorLockerMod),
-    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
-        wes_config:channel(ChannelType),
-    gen_server:call(
-      channel_name(ChannelName, ChannelLockerMod),
-      {read, ActorName, Message, ChannelConfig, ActorConfig}).
+    case actor_name_to_channel(ActorName, ActorLockerMod) of
+        {ChannelType, ChannelName} ->
+            #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+                wes_config:channel(ChannelType),
+            gen_server:call(
+              channel_name(ChannelName, ChannelLockerMod),
+              {read, ActorName, Message, ChannelConfig, ActorConfig});
+        undefined ->
+            throw(actor_not_active)
+    end.
 
 register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
     #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
@@ -138,32 +141,14 @@ handle_call({read, ActorName, Name, ChannelConfig, ActorConfig}, _From,
     timeout_reply({reply, Reply, State2});
 handle_call({register_actor, ActorName, ActorType, InitArgs, Config},
             _From, State) ->
-    Now = wes_timeout:now(),
-    try
-        State2 = channel__register_actor(ActorName, ActorType, InitArgs,
-                                         Config, Now, State),
-        State3 = update_message_timeout(State2, Now),
-        timeout_reply({reply, ok, State3})
-    catch throw:Reason ->
-            error_logger:info_msg("Error ~p", [Reason]),
-            {stop, normal, {error, Reason}, State}
-    end;
+    do_add_actor(ActorName, ActorType, InitArgs, Config, State);
 handle_call({ensure_actor, ActorName, ActorType, InitArgs, Config},
             _From, #state{actors = Actors} = State) ->
-    Now = wes_timeout:now(),
-    try
-        case wes_actor:list_find(ActorName, Actors) of
-            {ok, _} ->
-                timeout_reply({reply, ok, State});
-            false ->
-                State2 = channel__register_actor(ActorName, ActorType, InitArgs,
-                                                 Config, Now, State),
-                State3 = update_message_timeout(State2, Now),
-                timeout_reply({reply, ok, State3})
-        end
-    catch throw:Reason ->
-            error_logger:info_msg("Error ~p", [Reason]),
-            {stop, normal, {error, Reason}, State}
+    case wes_actor:list_find(ActorName, Actors) of
+        {ok, _} ->
+            timeout_reply({reply, ok, State});
+        false ->
+            do_add_actor(ActorName, ActorType, InitArgs, Config, State)
     end;
 handle_call(stop, _From, State) ->
     error_logger:info_msg("Stop command", []),
@@ -219,6 +204,18 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+do_add_actor(ActorName, ActorType, InitArgs, Config, State) ->
+    Now = wes_timeout:now(),
+    try
+        State2 = channel__register_actor(ActorName, ActorType, InitArgs,
+                                         Config, Now, State),
+        State3 = update_message_timeout(State2, Now),
+                timeout_reply({reply, ok, State3})
+    catch throw:Reason ->
+            error_logger:info_msg("Error ~p", [Reason]),
+            {stop, normal, {error, Reason}, State}
+    end.
 
 timeout_reply({noreply, State}) ->
     {noreply, State, do_timeout_reply(State)};
@@ -292,11 +289,17 @@ channel__dead_letter_handle(CmdName, Config, State) ->
     StatsMod:stat(command, CmdName).
 
 channel__command(CmdName, CmdPayload, State) ->
-    #state{actors = Actors} = State,
-    lists:mapfoldl(
+    #state{actors = Actors, type = ChannelType, name = ChannelName} = State,
+    wes_util:zffoldl(
       fun(A0, Stop) ->
-              {Actor, AStop} = wes_actor:act(A0, CmdName, CmdPayload),
-              {Actor, Stop or AStop}
+              case wes_actor:act(A0, CmdName, CmdPayload) of
+                  {Actor, AStop, true} ->
+                      wes_actor:save(Actor),
+                      wes_actor:deregister_name(Actor, ChannelType,ChannelName),
+                      {false, Stop or AStop};
+                  {Actor, AStop, false} ->
+                      {ok, Actor, Stop or AStop}
+              end
       end,
       false,
       Actors).

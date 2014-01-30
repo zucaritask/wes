@@ -17,6 +17,8 @@ init([]) ->
 read(counter, ActorState) ->
     ActorState.
 
+command(_StateName, incr, [100], ActorState) ->
+    #actor_response{state = ActorState, stop_actor = true};
 command(_StateName, incr, [0], ActorState) ->
     {stop, ActorState};
 command(_StateName, incr, [], ActorState) ->
