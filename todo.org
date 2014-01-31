@@ -87,6 +87,11 @@
   - [X] Actors should be anble to stop themselfs without stopping the channel.
   - [X] Nice error message when trying to read from a actor that isn't active.
 
+* Version 0.1.8 [0/3]
+  - [ ] Consume all timeouts that have expired when getting a timeout message.
+  - [ ] Write testcase for the message_timeout in wes_channel.
+  - [ ] Is it ms or seconds in the timeout handling.
+
 * Version 0.2 [0/5]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.
@@ -99,8 +104,6 @@
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
   - [ ] Benchmark lib to make sure the ideas work.
-  - [ ] Consume all timeouts that have expired when getting a timeout message.
-  - [ ] Write testcase for the message_timeout in wes_channel.
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.
