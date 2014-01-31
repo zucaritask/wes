@@ -95,7 +95,7 @@
     - [ ] Write a HOWTO
     - [ ] Make a rebar template
     - [X] Make a example application
-    - [ ] Describe persistance and channel/actor naming better in readme.
+    - [X] Describe persistance and channel/actor naming better in readme.
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
   - [ ] Benchmark lib to make sure the ideas work.

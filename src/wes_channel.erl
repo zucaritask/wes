@@ -186,6 +186,7 @@ handle_cast(_Msg, State) ->
 handle_info(timeout, #state{type = ChannelType,
                             timeouts = Timeouts} = State) ->
     {Name, _} = wes_timeout:next(Timeouts),
+    error_logger:info_msg("Timeout ~p", [Name]),
     Now = wes_timeout:now(),
     %% FIXME: Check if the times match.
     ChannelConfig = wes_config:channel(ChannelType),
@@ -195,12 +196,14 @@ handle_info(timeout, #state{type = ChannelType,
         NewState ->
             timeout_reply({noreply, NewState})
     end;
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    error_logger:info_msg("FIXME not handled info ~p", [Info]),
     %% FIXME: Broadcast info to actors that have exported some info
     %% handling function.
     timeout_reply({noreply, State}).
 
-terminate(Reason, #state{type = ChannelType} = State) ->
+terminate(Reason, #state{name = ChannelName, type = ChannelType} = State) ->
+    error_logger:info_msg("Terminating ~p", [ChannelName]),
     ChannelConfig = wes_config:channel(ChannelType),
     channel__stop(Reason, ChannelConfig, State),
     ok.
