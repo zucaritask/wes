@@ -19,7 +19,8 @@ db_test_() ->
        fun test_message_timeout/0,
        fun test_not_message_timeout/0,
        fun test_ensure_actor/0,
-       fun test_stop_actor/0
+       fun test_stop_actor/0,
+       fun test_no_channel/0
       ]}].
 
 test_setup() ->
@@ -239,3 +240,9 @@ test_stop_actor() ->
     ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [100])),
     ?assertThrow(actor_not_active, wes_channel:read(ActorType, Actor, counter)).
+
+test_no_channel() ->
+    Channel = hej4,
+    ChannelType = session,
+    ?assertError(channel_not_started,
+                 wes_channel:command(ChannelType, Channel, incr, [100])).

@@ -35,8 +35,9 @@ start(ChannelType, ChannelName, StartActors) ->
                      [ChannelType, ChannelName, StartActors, Config], []).
 
 stop(ChannelType, ChannelName) ->
-    #channel_config{locker_mod = LockerMod} = wes_config:channel(ChannelType),
-    gen_server:call(channel_name(ChannelName, LockerMod), stop).
+    #channel_config{locker_mod = ChannelLockerMod} =
+        wes_config:channel(ChannelType),
+    call(ChannelName, ChannelLockerMod, stop).
 
 status(ChannelType, ChannelName) ->
     #channel_config{locker_mod = LockerMod} = wes_config:channel(ChannelType),
@@ -46,10 +47,10 @@ status(ChannelType, ChannelName) ->
     end.
 
 command(ChannelType, ChannelName, CmdName, CmdPayload) ->
-    #channel_config{locker_mod = LockerMod} = Config =
+    #channel_config{locker_mod = ChannelLockerMod} = Config =
         wes_config:channel(ChannelType),
-    gen_server:call(channel_name(ChannelName, LockerMod),
-                    {command, CmdName, CmdPayload, Config}).
+    Payload = {command, CmdName, CmdPayload, Config},
+    call(ChannelName, ChannelLockerMod, Payload).
 
 event(ChannelType, ChannelName, EvName, EvPayload) ->
     #channel_config{locker_mod = LockerMod} = ChannelConfig =
@@ -64,9 +65,8 @@ read(ActorType, ActorName, Message) ->
         {ChannelType, ChannelName} ->
             #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
                 wes_config:channel(ChannelType),
-            gen_server:call(
-              channel_name(ChannelName, ChannelLockerMod),
-              {read, ActorName, Message, ChannelConfig, ActorConfig});
+            Payload = {read, ActorName, Message, ChannelConfig, ActorConfig},
+            call(ChannelName, ChannelLockerMod, Payload);
         undefined ->
             throw(actor_not_active)
     end.
@@ -74,16 +74,23 @@ read(ActorType, ActorName, Message) ->
 register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
     #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
         wes_config:channel(ChannelType),
-    gen_server:call(channel_name(ChannelName, ChannelLockerMod),
-                    {register_actor, ActorName, ActorType, InitArgs,
-                     ChannelConfig}).
+    Payload = {register_actor, ActorName, ActorType, InitArgs,
+               ChannelConfig},
+    call(ChannelName, ChannelLockerMod, Payload).
 
 ensure_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
     #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
         wes_config:channel(ChannelType),
-    gen_server:call(channel_name(ChannelName, ChannelLockerMod),
-                    {ensure_actor, ActorName, ActorType, InitArgs,
-                     ChannelConfig}).
+    Payload = {ensure_actor, ActorName, ActorType, InitArgs, ChannelConfig},
+    call(ChannelName, ChannelLockerMod, Payload).
+
+
+call(ChannelName, ChannelLockerMod, Payload) ->
+    try
+        gen_server:call(channel_name(ChannelName, ChannelLockerMod), Payload)
+    catch exit:{noproc, _} ->
+            erlang:error(channel_not_started)
+    end.
 
 %% ---------------------------------------------------------------------------
 %% API Helpers
