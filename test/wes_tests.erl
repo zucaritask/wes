@@ -239,7 +239,7 @@ test_stop_actor() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
     ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [100])),
-    ?assertThrow(actor_not_active, wes_channel:read(ActorType, Actor, counter)).
+    ?assertError(actor_not_active, wes_channel:read(ActorType, Actor, counter)).
 
 test_no_channel() ->
     Channel = hej4,
