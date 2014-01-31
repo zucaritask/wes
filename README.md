@@ -1,10 +1,15 @@
 # wes
-This is a work in progress. See todo.org for more details.
 [![Build Status](https://travis-ci.org/wooga/wes.png?branch=master)](https://travis-ci.org/wooga/wes)
 
 ## Introduction
 Wes is a library that helps you to build actor based services in erlang.
-The focus of Wes is to keep your code decouple and reuseable. 
+The focus of Wes is to keep your code decouple and reuseable.
+
+## Getting started
+
+### Example project
+[wes bank](https://github.com/anha0825/wes_bank) -
+Implements a simple bank account model on top of wes.
 
 ## API
 A caller interacts with with system through commands and reads.
