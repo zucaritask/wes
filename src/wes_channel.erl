@@ -68,7 +68,7 @@ read(ActorType, ActorName, Message) ->
             Payload = {read, ActorName, Message, ChannelConfig, ActorConfig},
             call(ChannelName, ChannelLockerMod, Payload);
         undefined ->
-            throw(actor_not_active)
+            erlang:error(actor_not_active)
     end.
 
 register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
