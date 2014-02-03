@@ -27,10 +27,10 @@ unregister_name(_Id) ->
     ok.
 
 register_name(_Id, _Pid) ->
-    ok.
+    yes.
 
 register_actor(_Id, _ChannelType, _ChannelName) ->
-    {ok, 1000}.
+    {ok, []}.
 
 unregister_actor(_Id, _ChannelType, _ChannelName) ->
     ok.

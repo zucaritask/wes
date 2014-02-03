@@ -68,11 +68,14 @@ register_name(Id, Pid) ->
 locker_lease_duration() ->
     1000 * 60 * 5. %% FIXME config.
 
+locker_renew_duration() ->
+    1000 * 60 * 2. %% FIXME config.
+
 register_actor(Id, ChannelType, ChannelName) ->
     case locker:lock({actor, Id}, {ChannelType, ChannelName},
                      locker_lease_duration()) of
         {ok, _, _, _} ->
-            {ok, 1000};
+            {ok, [{{lock, ChannelType, ChannelName}, locker_renew_duration()}]};
         {error, no_quorum} ->
             {error, no_quorum}
     end.

@@ -66,11 +66,14 @@ register_name(Id, Pid) ->
     ok = wes_lock_ets_srv:lock({channel, Id}, Pid),
     yes.
 
+renew_duration() ->
+    1000.
+
 register_actor(Id, ChannelType, ChannelName) ->
     error_logger:info_msg("registring actor ~p ~p ~p",
                           [Id, ChannelType, ChannelName]),
     case wes_lock_ets_srv:lock({actor, Id}, {ChannelType, ChannelName}) of
-        ok -> {ok, 1000}; %% FIXME ??
+        ok -> {ok, [{{lock, ChannelType, ChannelName}, renew_duration()}]};
         {error, Reason}-> throw({error_registing_actor, Reason})
     end.
 

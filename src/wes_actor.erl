@@ -44,10 +44,9 @@ init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
             not_found ->
                 response(ActorCb:init(InitArgs))
         end,
-    {ok, LockDuration} = register_name(ActorName, ChannelType, ChannelName,
+    {ok, LockTimeouts} = register_name(ActorName, ChannelType, ChannelName,
                                        LockerMod),
-    Timeouts = [{{lock, ChannelType, ChannelName}, LockDuration} |
-                Response#actor_response.new_timeouts],
+    Timeouts = LockTimeouts ++ Response#actor_response.new_timeouts,
     {#actor{name = ActorName,
             type = Type,
             state_name = Response#actor_response.state_name,

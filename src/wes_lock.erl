@@ -12,7 +12,7 @@
 %% Actor stuff
 -callback register_actor(ActorName::any(), ChannelType::any(),
                          ChannelName::any()) ->
-    {ok, Timeout::integer()}. %% what?
+    {ok, Timeouts::list()}.
 
 -callback actor_timeout(ActorName::any(), ChannelType::any(),
                         ChannelName::any()) ->
