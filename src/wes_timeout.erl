@@ -8,7 +8,7 @@
          new/0,
          add/4,
          to_list/1,
-         now/0,
+         now_milli/0,
          time_diff/2]).
 
 next(Timeouts) ->
@@ -38,9 +38,9 @@ add(Name, Timeout, Now, Timeouts) ->
 new() ->
     dict:new().
 
-now() ->
-    {MegaSecs, Secs, _} = os:timestamp(),
-    MegaSecs * 1000000 + Secs.
+now_milli() ->
+    {MegaSecs, Secs, MicroSecs} = os:timestamp(),
+    (MegaSecs * 1000000 + Secs) * 1000 + (MicroSecs div 1000).
 
 time_diff(infinity, _) -> infinity;
 time_diff(A, B) -> A - B.

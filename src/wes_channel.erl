@@ -106,7 +106,7 @@ actor_name_to_channel(ActorName, LockerMod) ->
 %%%===================================================================
 
 init([ChannelType, ChannelName, ActorArgs, _Config]) ->
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     ChannelConfig = wes_config:channel(ChannelType),
     try
         State = channel__init(ChannelType, ChannelName, ActorArgs, Now,
@@ -119,12 +119,12 @@ init([ChannelType, ChannelName, ActorArgs, _Config]) ->
 handle_call({command, CmdName, _CmdPayload, ChannelConfig}, _From,
             #state{actors = []} = State) ->
     channel__dead_letter_handle(CmdName, ChannelConfig, State),
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     State2 = update_message_timeout(State, Now),
     timeout_reply({reply, ok, State2});
 handle_call({command, CmdName, CmdPayload, ChannelConfig}, _From, State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     try
         {NewActors, ShouldStop} = channel__command(CmdName, CmdPayload, State),
         if ShouldStop ->
@@ -142,7 +142,7 @@ handle_call({command, CmdName, CmdPayload, ChannelConfig}, _From, State) ->
     end;
 handle_call({read, ActorName, Name, ChannelConfig, ActorConfig}, _From,
             State) ->
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     Reply = channel__read(ActorName, Name, ChannelConfig, ActorConfig, State),
     State2 = update_message_timeout(State, Now),
     timeout_reply({reply, Reply, State2});
@@ -163,7 +163,7 @@ handle_call(stop, _From, State) ->
 
 handle_cast({event, EvName, EvPayload, ChannelConfig}, State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     try
         {NewActors, ShouldStop} = channel__command(EvName, EvPayload, State),
         if ShouldStop ->
@@ -187,7 +187,7 @@ handle_info(timeout, #state{type = ChannelType,
                             timeouts = Timeouts} = State) ->
     {Name, _} = wes_timeout:next(Timeouts),
     error_logger:info_msg("Timeout ~p", [Name]),
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     %% FIXME: Check if the times match.
     ChannelConfig = wes_config:channel(ChannelType),
     case channel__timeout(Name, Now, ChannelConfig, State) of
@@ -216,7 +216,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 do_add_actor(ActorName, ActorType, InitArgs, Config, State) ->
-    Now = wes_timeout:now(),
+    Now = wes_timeout:now_milli(),
     try
         State2 = channel__register_actor(ActorName, ActorType, InitArgs,
                                          Config, Now, State),
@@ -236,7 +236,7 @@ timeout_reply({reply, Reply, State}) ->
 
 do_timeout_reply(#state{timeouts = Timeouts}) ->
     {_Name, Time} = wes_timeout:next(Timeouts),
-    wes_timeout:time_diff(Time, wes_timeout:now()).
+    wes_timeout:time_diff(Time, wes_timeout:now_milli()).
 
 update_message_timeout(#state{timeouts = Timeouts} = State,  Now) ->
     NewTimeouts = wes_timeout:reset(message_timeout, Now, Timeouts),
