@@ -70,7 +70,7 @@ renew_duration() ->
     1000.
 
 register_actor(Id, ChannelType, ChannelName) ->
-    error_logger:info_msg("registring actor ~p ~p ~p",
+    error_logger:info_msg("registering actor ~p ~p ~p",
                           [Id, ChannelType, ChannelName]),
     case wes_lock_ets_srv:lock({actor, Id}, {ChannelType, ChannelName}) of
         ok -> {ok, [{{lock, ChannelType, ChannelName}, renew_duration()}]};
@@ -78,7 +78,7 @@ register_actor(Id, ChannelType, ChannelName) ->
     end.
 
 unregister_actor(Id, ChannelType, ChannelName) ->
-    error_logger:info_msg("unregistring actor ~p ~p ~p",
+    error_logger:info_msg("unregistering actor ~p ~p ~p",
                           [Id, ChannelType, ChannelName]),
     ok = wes_lock_ets_srv:release({actor, Id}, {ChannelType, ChannelName}).
 
