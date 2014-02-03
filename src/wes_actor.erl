@@ -1,6 +1,7 @@
 -module(wes_actor).
 
--include("wes.hrl").
+-include("wes_internal.hrl").
+-include("../include/wes.hrl").
 -include("wes_actor.hrl").
 
 -export([init/3,

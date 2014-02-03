@@ -12,3 +12,6 @@ init_dialyzer:
 
 check: compile
 	dialyzer --no_native -Wno_undefined_callbacks -Wno_return -r ebin --plt .dialyzer.plt
+
+clean:
+	./rebar clean

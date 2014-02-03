@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--include("wes.hrl").
+-include("wes_internal.hrl").
 
 %% API
 -export([start/3,

@@ -87,8 +87,7 @@
   - [X] Actors should be anble to stop themselfs without stopping the channel.
   - [X] Nice error message when trying to read from a actor that isn't active.
 
-* Version 0.1.8 [3/4]
-  - [ ] Consume all timeouts that have expired when getting a timeout message.
+* Version 0.1.8 [3/3]
   - [X] Write testcase for the message_timeout in wes_channel.
   - [X] Is it ms or seconds in the timeout handling.
   - [X] Why is the return type form register actor {ok, interger()}.
@@ -126,6 +125,7 @@
 * Future/unsorted features
   This is ideas that seems far fetched now, but might be good to have in the
   back of the head.
+  - [ ] Consume all timeouts that have expired when getting a timeout message.
   - [ ] Don't call wes_timeout:now_milli/0 in the wes_channel timeout.
   - [ ] Event sourced actors
     Save commands/events to an actor in addition to periodically save state.

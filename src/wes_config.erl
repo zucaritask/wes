@@ -1,6 +1,6 @@
 -module(wes_config).
 
--include("wes.hrl").
+-include("wes_internal.hrl").
 
 -behaviour(gen_server).
 
