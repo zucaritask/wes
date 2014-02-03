@@ -2,7 +2,7 @@
 
 -behaviour(wes_actor).
 
--include("../src/wes.hrl").
+-include("../include/wes.hrl").
 
 -export([init/1,
          read/2,
