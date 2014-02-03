@@ -9,9 +9,9 @@
          register_name/2]).
 
 %% Actor stuff
--export([register_actor/2,
-         actor_timeout/2,
-         unregister_actor/2,
+-export([register_actor/3,
+         actor_timeout/3,
+         unregister_actor/3,
          channel_for_actor/1]).
 
 %% Channel stuff
@@ -29,16 +29,16 @@ unregister_name(_Id) ->
 register_name(_Id, _Pid) ->
     ok.
 
-register_actor(_Id, _Channel) ->
-    ok.
+register_actor(_Id, _ChannelType, _ChannelName) ->
+    {ok, 1000}.
 
-unregister_actor(_Id, _Channel) ->
+unregister_actor(_Id, _ChannelType, _ChannelName) ->
     ok.
 
 channel_for_actor(_Id) ->
     undefined.
 
-actor_timeout(_Name, _Channel) ->
+actor_timeout(_Name, _ChannelType, _ChannelName) ->
     ok.
 
 channel_timeout(_Channel) ->
