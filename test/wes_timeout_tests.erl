@@ -11,3 +11,11 @@ add_2_test() ->
     ?assertEqual({b, 11}, wes_timeout:next(Timeouts2)),
     Timeouts3 = wes_timeout:reset(b, 6, Timeouts2),
     ?assertEqual({a, 13}, wes_timeout:next(Timeouts3)).
+
+no_negative_time_diff_test() ->
+    ?assertEqual(0, wes_timeout:time_diff(100, 101)),
+    ?assertEqual(1, wes_timeout:time_diff(101, 100)).
+
+infinity_time_diff_test() ->
+    ?assertEqual(infinity, wes_timeout:time_diff(infinity, 101)),
+    ?assertError(badarith, wes_timeout:time_diff(101, infinity)).

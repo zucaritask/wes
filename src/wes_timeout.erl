@@ -43,4 +43,4 @@ now_milli() ->
     (MegaSecs * 1000000 + Secs) * 1000 + (MicroSecs div 1000).
 
 time_diff(infinity, _) -> infinity;
-time_diff(A, B) -> A - B.
+time_diff(A, B) -> max(0, A - B).
