@@ -92,12 +92,12 @@
   - [X] Is it ms or seconds in the timeout handling.
   - [X] Why is the return type form register actor {ok, interger()}.
 
-* Version 0.1.9 [2/5]
-  - [ ] Move logic from wes_channel to ... something.
+* Version 0.1.9 [4/5]
   - [X] Rename wes channel #state{} to #channel{}
-  - [ ] Write unit tests for wes_channel logic
   - [X] Write unit tests for wes_actor
-  - [ ] Maybe move integration tests in wes_tests.erl to common tests.
+  - [X] Maybe move integration tests in wes_tests.erl to common tests.
+  - [X] State migrations
+  - [ ] Several actors per lock?
 
 * Version 0.2 [0/5]
   The lib should be _useful when prototyping_ a wooga erlang backend.
@@ -111,9 +111,6 @@
   - [ ] Cleanup
     - [ ] Move all callbacks that introduces rebar deps to separate apps.
   - [ ] Benchmark lib to make sure the ideas work.
-  - [ ] Put actor locker timeout in actor config.
-  - [ ] State migrations
-  - [ ] Several actors per lock?
 
 * Version 0.3 [0/2]
   The lib contains _advanced features_ needed in GXios.

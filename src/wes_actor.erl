@@ -8,7 +8,8 @@
          save/1,
          read/2, read/3,
          act/3,
-         name/1
+         name/1,
+         code_change/3
          ]).
 
 -export([list_add/3,
@@ -121,6 +122,19 @@ timeout(#actor{state_name = StateName, type = Type,
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
      Response#actor_response.stop_channel}.
+
+code_change(#actor{state_name = StateName, type = Type, state = State} = Actor,
+            OldVsn, Extra) ->
+    #actor_config{cb_mod = CbMod} = wes_config:actor(Type),
+    case erlang:function_exported(CbMod, code_change, 4) of
+        true ->
+            Response = response(CbMod:code_change(StateName, State, OldVsn,
+                                                  Extra)),
+            Actor#actor{state_name = Response#actor_response.state_name,
+                        state = Response#actor_response.state};
+        false ->
+            Actor
+    end.
 
 response(#actor_response{} = Response) -> Response;
 response({stop, NewState}) ->

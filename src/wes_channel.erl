@@ -208,8 +208,11 @@ terminate(Reason, #channel{name = ChannelName, type = ChannelType} = State) ->
     channel__stop(Reason, ChannelConfig, State),
     ok.
 
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+code_change(OldVsn, State, Extra) ->
+    NewActors  = lists:map(
+                   fun(A) -> wes_actor:code_change(A, OldVsn, Extra) end,
+                   State#channel.actors),
+    {ok, State#channel{actors = NewActors}}.
 
 %%%===================================================================
 %%% Internal functions

@@ -22,7 +22,8 @@ actor_test_() ->
       fun test_teardown/1,
       [fun test_init/0,
        fun test_act/0,
-       fun test_timeout/0
+       fun test_timeout/0,
+       fun test_code_change/0
       ]}].
 
 test_init() ->
@@ -64,3 +65,18 @@ test_timeout() ->
                   false},
                  wes_actor:timeout(ActState0,
                                    {lock, channeltype1, channelname1})).
+
+
+test_code_change() ->
+    InitArgs = [],
+    ActorName = actor1,
+    ActorType = actortype1,
+    {ok, State0} = wes_example_count:init(InitArgs),
+    ActState0 = #actor{name = ActorName,
+                       type = ActorType,
+                       state = State0},
+    ?assertMatch(
+       #actor{name = ActorName,
+              type = ActorType,
+              state = State0},
+       wes_actor:code_change(ActState0, 1, [])).
