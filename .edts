@@ -1,0 +1,3 @@
+:name "wes_node"
+:node-sname "wes_node"
+:lib-dirs '("deps")
