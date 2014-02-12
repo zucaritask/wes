@@ -1,10 +1,13 @@
-all: compile
+all: get-deps compile
 	./rebar skip_deps=true xref
 
 compile:
 	./rebar compile
 
 test: all eunit ct
+
+get-deps:
+	./rebar get-deps
 
 ct:
 	@rm -rf test_data
