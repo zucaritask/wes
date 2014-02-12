@@ -4,6 +4,14 @@ all: compile
 compile:
 	./rebar compile
 
+test: all eunit ct
+
+ct:
+	@rm -rf test_data
+	@rm -rf src/.#*
+	@rm -rf test/.#*
+	./rebar ct -v skip_deps=true
+
 eunit: all
 	./rebar skip_deps=true compile verbose=1 eunit
 

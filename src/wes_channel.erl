@@ -203,7 +203,7 @@ handle_info(Info, State) ->
     timeout_reply({noreply, State}).
 
 terminate(Reason, #channel{name = ChannelName, type = ChannelType} = State) ->
-    error_logger:info_msg("Terminating ~p", [ChannelName]),
+    error_logger:info_msg("Terminating ~p ~p", [ChannelName, Reason]),
     ChannelConfig = wes_config:channel(ChannelType),
     channel__stop(Reason, ChannelConfig, State),
     ok.

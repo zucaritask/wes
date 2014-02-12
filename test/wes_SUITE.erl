@@ -1,29 +1,66 @@
--module(wes_tests).
-
--include_lib("eunit/include/eunit.hrl").
+-module(wes_SUITE).
 
 -compile(export_all).
 
-db_test_() ->
-    [{foreach, spawn,
-      fun test_setup/0,
-      fun test_teardown/1,
-      [fun test_counters/0,
-       fun test_ets/0,
-       fun test_lock_restart/0,
-       fun test_stop/0,
-       fun test_bad_command/0,
-       fun test_add_actor/0,
-       fun test_two_actors/0,
-       fun test_same_actor_twice/0,
-       fun test_message_timeout/0,
-       fun test_not_message_timeout/0,
-       fun test_ensure_actor/0,
-       fun test_stop_actor/0,
-       fun test_no_channel/0
-      ]}].
+-include_lib("common_test/include/ct.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
-test_setup() ->
+%%--------------------------------------------------------------------
+%% @spec suite() -> Info
+%% Info = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+suite() ->
+    [{timetrap,{seconds,30}}].
+
+%%--------------------------------------------------------------------
+%% @spec init_per_suite(Config0) ->
+%%     Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_suite(Config) ->
+    Config.
+
+%%--------------------------------------------------------------------
+%% @spec end_per_suite(Config0) -> void() | {save_config,Config1}
+%% Config0 = Config1 = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+end_per_suite(_Config) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @spec init_per_group(GroupName, Config0) ->
+%%               Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% GroupName = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_group(_GroupName, Config) ->
+    Config.
+
+%%--------------------------------------------------------------------
+%% @spec end_per_group(GroupName, Config0) ->
+%%               void() | {save_config,Config1}
+%% GroupName = atom()
+%% Config0 = Config1 = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+end_per_group(_GroupName, _Config) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @spec init_per_testcase(TestCase, Config0) ->
+%%               Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% TestCase = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_testcase(_TestCase, _Config) ->
     ActorTypes =
         [
          [{id, counter},
@@ -54,18 +91,74 @@ test_setup() ->
           {message_timeout, 750},
           {stats_mod, wes_stats_ets}]
         ],
-    wes_sup:start_link(ActorTypes, ChannelTypes),
+    A = wes_sup:start_link(ActorTypes, ChannelTypes),
     wes_db_ets:start([]),
     wes_stats_ets:start_link(),
-    {ok, _} = wes_lock_ets:start(1000).
+    {ok, _} = wes_lock_ets:start(1000),
+    [{sup, A}].
 
-test_teardown(_) ->
-    ok = wes_lock_ets:stop(),
-    wes_stats_ets:stop(),
-    wes_db_ets:stop([]),
+%%--------------------------------------------------------------------
+%% @spec end_per_testcase(TestCase, Config0) ->
+%%               void() | {save_config,Config1} | {fail,Reason}
+%% TestCase = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+end_per_testcase(_TestCase, Config) ->
+    {ok, A} = proplists:get_value(sup, Config),
+    error_logger:error_msg("sup ~p", [erlang:process_info(A)]),
+    catch wes_lock_ets:stop(),
+    catch wes_stats_ets:stop(),
+    catch wes_db_ets:stop([]),
     ok.
 
+%%--------------------------------------------------------------------
+%% @spec groups() -> [Group]
+%% Group = {GroupName,Properties,GroupsAndTestCases}
+%% GroupName = atom()
+%% Properties = [parallel | sequence | Shuffle | {RepeatType,N}]
+%% GroupsAndTestCases = [Group | {group,GroupName} | TestCase]
+%% TestCase = atom()
+%% Shuffle = shuffle | {shuffle,{integer(),integer(),integer()}}
+%% RepeatType = repeat | repeat_until_all_ok | repeat_until_all_fail |
+%%              repeat_until_any_ok | repeat_until_any_fail
+%% N = integer() | forever
+%% @end
+%%--------------------------------------------------------------------
+groups() ->
+    [].
+
+%%--------------------------------------------------------------------
+%% @spec all() -> GroupsAndTestCases | {skip,Reason}
+%% GroupsAndTestCases = [{group,GroupName} | TestCase]
+%% GroupName = atom()
+%% TestCase = atom()
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+all() ->
+    [test_counters,
+     test_lock_restart,
+     test_counters,
+     test_ets,
+     test_lock_restart,
+     test_stop,
+     test_bad_command,
+     test_add_actor,
+     test_two_actors,
+     test_same_actor_twice,
+     test_message_timeout,
+     test_not_message_timeout,
+     test_ensure_actor,
+     test_stop_actor,
+     test_no_channel
+    ].
+
 test_counters() ->
+    [].
+
+test_counters(_Config) ->
     Channel = session1,
     ChannelType = session,
     Actor = act1,
@@ -95,7 +188,9 @@ test_counters() ->
                   {{stop, normal}, 1}], wes_stats_ets:all_stats()),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_lock_restart() ->
+test_lock_restart() -> [].
+
+test_lock_restart(_Config) ->
     Channel = hej2,
     ChannelType = session,
     Actor = act2,
@@ -109,7 +204,9 @@ test_lock_restart() ->
     ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_ets() ->
+test_ets() -> [].
+
+test_ets(_Config) ->
     Channel = hej3,
     ChannelType = session,
     Actor = act3,
@@ -127,7 +224,9 @@ test_ets() ->
     ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_stop() ->
+test_stop() -> [].
+
+test_stop(_Config) ->
     Channel = hej4,
     ChannelType = session,
     Actor = act4,
@@ -142,7 +241,9 @@ test_stop() ->
     ok = wes_channel:command(ChannelType, Channel, incr, [0]),
     ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
 
-test_bad_command() ->
+test_bad_command() -> [].
+
+test_bad_command(_Config) ->
     Channel = hej4,
     ChannelType = session,
     Actor = act4,
@@ -154,7 +255,9 @@ test_bad_command() ->
                  wes_channel:command(ChannelType, Channel, incr, [-1])),
     ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
 
-test_two_actors() ->
+test_two_actors() -> [].
+
+test_two_actors(_Config) ->
     Channel = session1,
     ChannelType = session,
     Actor1 = act1,
@@ -167,7 +270,9 @@ test_two_actors() ->
     ?assertEqual(1, wes_channel:read(ActorType, Actor2, counter)),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_same_actor_twice() ->
+test_same_actor_twice() -> [].
+
+test_same_actor_twice(_Config) ->
     Channel1 = session1,
     Channel2 = session2,
     ChannelType = session,
@@ -179,7 +284,9 @@ test_same_actor_twice() ->
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
     ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
 
-test_add_actor() ->
+test_add_actor() -> [].
+
+test_add_actor(_Config) ->
     Channel = hej5,
     ChannelType = session,
     Actor = act5,
@@ -190,7 +297,9 @@ test_add_actor() ->
     ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_message_timeout() ->
+test_message_timeout() -> [].
+
+test_message_timeout(_Config) ->
     Channel = hej6,
     ChannelType = message_timeout_session,
     Actor = act6,
@@ -204,7 +313,9 @@ test_message_timeout() ->
     timer:sleep(1000),
     ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
 
-test_not_message_timeout() ->
+test_not_message_timeout() ->  [].
+
+test_not_message_timeout(_Config) ->
     Channel = hej6,
     ChannelType = message_timeout_session,
     Actor = act6,
@@ -218,9 +329,12 @@ test_not_message_timeout() ->
     timer:sleep(600),
     ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
     timer:sleep(600),
-    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)).
+    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_ensure_actor() ->
+test_ensure_actor() -> [].
+
+test_ensure_actor(_Config) ->
     Channel = hej7,
     ChannelType = session,
     Actor = act7,
@@ -228,9 +342,12 @@ test_ensure_actor() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, []),
     ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []),
     ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []),
-    ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)).
+    ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_stop_actor() ->
+test_stop_actor() -> [].
+
+test_stop_actor(_Config) ->
     Channel = hej4,
     ChannelType = session,
     Actor = act4,
@@ -239,9 +356,12 @@ test_stop_actor() ->
     {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
     ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
     ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [100])),
-    ?assertError(actor_not_active, wes_channel:read(ActorType, Actor, counter)).
+    ?assertError(actor_not_active, wes_channel:read(ActorType, Actor, counter)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
 
-test_no_channel() ->
+test_no_channel() -> [].
+
+test_no_channel(_Config) ->
     Channel = hej4,
     ChannelType = session,
     ?assertError(channel_not_started,

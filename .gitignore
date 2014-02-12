@@ -6,6 +6,7 @@ deps/**
 .idea
 *.log*
 *.beam
+logs/*
 eunit.coverage.xml
 erl_crash.dump
 .dialyzer.plt
