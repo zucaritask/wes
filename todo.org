@@ -92,9 +92,9 @@
   - [X] Is it ms or seconds in the timeout handling.
   - [X] Why is the return type form register actor {ok, interger()}.
 
-* Version 0.1.9 [1/5]
+* Version 0.1.9 [2/5]
   - [ ] Move logic from wes_channel to ... something.
-  - [ ] Rename wes channel state to #wes_channel{}
+  - [X] Rename wes channel #state{} to #channel{}
   - [ ] Write unit tests for wes_channel logic
   - [X] Write unit tests for wes_actor
   - [ ] Maybe move integration tests in wes_tests.erl to common tests.
