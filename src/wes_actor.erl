@@ -38,7 +38,7 @@
 
 init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
     #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf= DbConf,
-                  locker_mod = LockerMod} = wes_config:actor(Type),
+                  lock_mod = Lockmod} = wes_config:actor(Type),
     Response =
         case DbMod:read(ActorCb:key(ActorName), DbConf) of
             {ok, {_Key, _Value} = Data} ->
@@ -47,7 +47,7 @@ init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
                 response(ActorCb:init(InitArgs))
         end,
     {ok, LockTimeouts} = register_name(ActorName, ChannelType, ChannelName,
-                                       LockerMod),
+                                       Lockmod),
     Timeouts = LockTimeouts ++ Response#actor_response.new_timeouts,
     {#actor{name = ActorName,
             type = Type,
@@ -98,19 +98,19 @@ act(#actor{state_name = StateName, type = Type, state = ActorState} = Actor,
      Response#actor_response.stop_channel,
      Response#actor_response.stop_actor}.
 
-register_name(Name, ChannelType, ChannelName, LockerMod) ->
-    LockerMod:register_actor(Name, ChannelType, ChannelName).
+register_name(Name, ChannelType, ChannelName, Lockmod) ->
+    Lockmod:register_actor(Name, ChannelType, ChannelName).
 
 deregister_name(#actor{name = Name, type = Type} = _Actor,
                 ChannelType, ChannelName) ->
-    #actor_config{locker_mod = LockerMod} = wes_config:actor(Type),
-    LockerMod:unregister_actor(Name, ChannelType, ChannelName).
+    #actor_config{lock_mod = Lockmod} = wes_config:actor(Type),
+    Lockmod:unregister_actor(Name, ChannelType, ChannelName).
 
 %% FIXME: Cleanup the response from this function.
 timeout(#actor{name = Name, type = Type, state = State} = Actor,
         {lock, ChannelType, ChannelName}) ->
-    #actor_config{locker_mod = LockerMod} = wes_config:actor(Type),
-    ok = LockerMod:actor_timeout(Name, ChannelType, ChannelName),
+    #actor_config{lock_mod = Lockmod} = wes_config:actor(Type),
+    ok = Lockmod:actor_timeout(Name, ChannelType, ChannelName),
     Response = response({ok, State}),
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},

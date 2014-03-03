@@ -29,41 +29,41 @@
 %%%===================================================================
 
 start(ChannelType, ChannelName, StartActors) ->
-    #channel_config{locker_mod = LockerMod} = Config =
+    #channel_config{lock_mod = LockerMod} = Config =
         wes_config:channel(ChannelType),
     gen_server:start(channel_name(ChannelName, LockerMod), ?MODULE,
                      [ChannelType, ChannelName, StartActors, Config], []).
 
 stop(ChannelType, ChannelName) ->
-    #channel_config{locker_mod = ChannelLockerMod} =
+    #channel_config{lock_mod = ChannelLockerMod} =
         wes_config:channel(ChannelType),
     call(ChannelName, ChannelLockerMod, stop).
 
 status(ChannelType, ChannelName) ->
-    #channel_config{locker_mod = LockerMod} = wes_config:channel(ChannelType),
+    #channel_config{lock_mod = LockerMod} = wes_config:channel(ChannelType),
     case LockerMod:whereis_name(ChannelName) of
         undefined -> {error, not_found};
         Pid when is_pid(Pid) -> {ok, Pid}
     end.
 
 command(ChannelType, ChannelName, CmdName, CmdPayload) ->
-    #channel_config{locker_mod = ChannelLockerMod} = Config =
+    #channel_config{lock_mod = ChannelLockerMod} = Config =
         wes_config:channel(ChannelType),
     Payload = {command, CmdName, CmdPayload, Config},
     call(ChannelName, ChannelLockerMod, Payload).
 
 event(ChannelType, ChannelName, EvName, EvPayload) ->
-    #channel_config{locker_mod = LockerMod} = ChannelConfig =
+    #channel_config{lock_mod = LockerMod} = ChannelConfig =
         wes_config:channel(ChannelType),
     gen_server:cast(channel_name(ChannelName, LockerMod),
                     {event, EvName, EvPayload, ChannelConfig}).
 
 read(ActorType, ActorName, Message) ->
-    #actor_config{locker_mod = ActorLockerMod} = ActorConfig =
+    #actor_config{lock_mod = ActorLockerMod} = ActorConfig =
         wes_config:actor(ActorType),
     case actor_name_to_channel(ActorName, ActorLockerMod) of
         {ChannelType, ChannelName} ->
-            #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+            #channel_config{lock_mod = ChannelLockerMod} = ChannelConfig =
                 wes_config:channel(ChannelType),
             Payload = {read, ActorName, Message, ChannelConfig, ActorConfig},
             call(ChannelName, ChannelLockerMod, Payload);
@@ -72,14 +72,14 @@ read(ActorType, ActorName, Message) ->
     end.
 
 register_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
-    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+    #channel_config{lock_mod = ChannelLockerMod} = ChannelConfig =
         wes_config:channel(ChannelType),
     Payload = {register_actor, ActorName, ActorType, InitArgs,
                ChannelConfig},
     call(ChannelName, ChannelLockerMod, Payload).
 
 ensure_actor(ChannelType, ChannelName, ActorType, ActorName, InitArgs) ->
-    #channel_config{locker_mod = ChannelLockerMod} = ChannelConfig =
+    #channel_config{lock_mod = ChannelLockerMod} = ChannelConfig =
         wes_config:channel(ChannelType),
     Payload = {ensure_actor, ActorName, ActorType, InitArgs, ChannelConfig},
     call(ChannelName, ChannelLockerMod, Payload).
@@ -330,7 +330,7 @@ channel__register_actor(ActorName, ActorType, InitArgs,
 channel__stop(Reason, ChannelConfig, State) ->
     #channel{type = ChannelType, name = Name, actors = Actors} = State,
     #channel_config{
-       locker_mod = LockerMod,
+       lock_mod = LockerMod,
        stats_mod = StatsMod} = ChannelConfig,
     if Reason =:= normal ->
             StatsMod:stat(stop, normal),
@@ -353,7 +353,7 @@ channel__timeout(channel_lock_timeout = TimeoutName,
                  #channel{timeouts = Timeouts,
                           name = ChannelName} = State) ->
     #channel_config{stats_mod = StatsMod,
-                    locker_mod = LockerMod} = ChannelConfig,
+                    lock_mod = LockerMod} = ChannelConfig,
     StatsMod:stat(timeout, channel),
     channel_lock_timeout(ChannelName, LockerMod),
     NewTimeouts = wes_timeout:reset(TimeoutName, Now, Timeouts),
@@ -390,7 +390,7 @@ channel_timeout_test() ->
     ?assertEqual([{channel_lock_timeout, {InitNow + Interval, Interval}}],
                  wes_timeout:to_list(State0#channel.timeouts)),
 
-    ChannelConfig = #channel_config{locker_mod = wes_lock_null,
+    ChannelConfig = #channel_config{lock_mod = wes_lock_null,
                                     lock_timeout_interval = Interval,
                                     message_timeout = 300,
                                     stats_mod = wes_stats_null},

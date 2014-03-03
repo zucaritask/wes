@@ -71,7 +71,7 @@ code_change(_OldVsn, State, _Extra) ->
 init_actor(Actor) ->
     Key = proplists:get_value(id, Actor),
     Config = #actor_config{
-                locker_mod = proplists:get_value(locker_mod, Actor),
+                lock_mod = proplists:get_value(lock_mod, Actor),
                 cb_mod = proplists:get_value(cb_mod, Actor),
                 db_mod = proplists:get_value(db_mod, Actor),
                 db_conf = proplists:get_value(db_conf, Actor)
@@ -82,7 +82,7 @@ init_actor(Actor) ->
 init_channel(Channel) ->
     Key = proplists:get_value(id, Channel),
     Config = #channel_config{
-                locker_mod = proplists:get_value(locker_mod, Channel),
+                lock_mod = proplists:get_value(lock_mod, Channel),
                 stats_mod = proplists:get_value(stats_mod, Channel),
                 message_timeout = proplists:get_value(message_timeout, Channel),
                 lock_timeout_interval =

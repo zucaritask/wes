@@ -64,13 +64,13 @@ init_per_testcase(_TestCase, _Config) ->
     ActorTypes =
         [
          [{id, counter},
-          {locker_mod, wes_lock_ets},
+          {lock_mod, wes_lock_ets},
           {locker_conf, []},
           {cb_mod, wes_example_count},
           {db_mod, wes_db_ets},
           {db_conf, []}],
          [{id, null_counter},
-          {locker_mod, wes_lock_ets},
+          {lock_mod, wes_lock_ets},
           {locker_conf, []},
           {cb_mod, wes_example_count},
           {db_mod, wes_db_null},
@@ -79,13 +79,13 @@ init_per_testcase(_TestCase, _Config) ->
     ChannelTypes =
         [
          [{id, session},
-          {locker_mod, wes_lock_ets},
+          {lock_mod, wes_lock_ets},
           {locker_conf, []},
           {lock_timeout_interval, 1000},
           {message_timeout, 50000},
           {stats_mod, wes_stats_ets}],
          [{id, message_timeout_session},
-          {locker_mod, wes_lock_ets},
+          {lock_mod, wes_lock_ets},
           {locker_conf, []},
           {lock_timeout_interval, 2000},
           {message_timeout, 750},

@@ -6,7 +6,7 @@
 
 test_setup() ->
     Config = #actor_config{
-                locker_mod = wes_lock_null,
+                lock_mod = wes_lock_null,
                 cb_mod = wes_example_count,
                 db_mod = wes_db_null,
                 db_conf = []},
