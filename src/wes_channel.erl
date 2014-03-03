@@ -128,8 +128,6 @@ handle_call({command, CmdName, CmdPayload, ChannelConfig}, _From, State) ->
     try
         {NewActors, ShouldStop} = channel__command(CmdName, CmdPayload, State),
         if ShouldStop ->
-                error_logger:info_msg("stop command ~p:~p",
-                                      [State#channel.name, CmdName]),
                 {stop, normal, ok, State#channel{actors = NewActors}};
            true ->
                 State2 = update_message_timeout(State, Now),
@@ -158,7 +156,6 @@ handle_call({ensure_actor, ActorName, ActorType, InitArgs, Config},
             do_add_actor(ActorName, ActorType, InitArgs, Config, State)
     end;
 handle_call(stop, _From, State) ->
-    error_logger:info_msg("Stop command", []),
     {stop, normal, ok, State}.
 
 handle_cast({event, EvName, EvPayload, ChannelConfig}, State) ->
@@ -167,15 +164,12 @@ handle_cast({event, EvName, EvPayload, ChannelConfig}, State) ->
     try
         {NewActors, ShouldStop} = channel__command(EvName, EvPayload, State),
         if ShouldStop ->
-                error_logger:info_msg("stop event ~p:~p",
-                                      [State#channel.name, EvName]),
                 {stop, normal, State#channel{actors = NewActors}};
            true ->
                 State2 = update_message_timeout(State, Now),
                 timeout_reply({noreply, State2#channel{actors = NewActors}})
         end
     catch throw:_Reason ->
-            error_logger:info_msg("Error ~p", [_Reason]),
             {stop, normal, State}
     after
         StatsMod:stat(event, EvName)
@@ -186,7 +180,6 @@ handle_cast(_Msg, State) ->
 handle_info(timeout, #channel{type = ChannelType,
                               timeouts = Timeouts} = State) ->
     {Name, _} = wes_timeout:next(Timeouts),
-    error_logger:info_msg("Timeout ~p", [Name]),
     Now = wes_timeout:now_milli(),
     %% FIXME: Check if the times match.
     ChannelConfig = wes_config:channel(ChannelType),
@@ -203,7 +196,6 @@ handle_info(Info, State) ->
     timeout_reply({noreply, State}).
 
 terminate(Reason, #channel{name = ChannelName, type = ChannelType} = State) ->
-    error_logger:info_msg("Terminating ~p ~p", [ChannelName, Reason]),
     ChannelConfig = wes_config:channel(ChannelType),
     channel__stop(Reason, ChannelConfig, State),
     ok.
@@ -226,7 +218,6 @@ do_add_actor(ActorName, ActorType, InitArgs, Config, State) ->
         State3 = update_message_timeout(State2, Now),
         timeout_reply({reply, ok, State3})
     catch throw:Reason ->
-            error_logger:info_msg("Error ~p", [Reason]),
             {stop, normal, {error, Reason}, State}
     end.
 

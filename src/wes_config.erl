@@ -46,7 +46,6 @@ init([Actors, Channels]) ->
                            {read_concurrency, true}]),
     [init_actor(Actor) || Actor <- Actors],
     [init_channel(Channel) || Channel <- Channels],
-    error_logger:error_msg("Config tab ~p", [ets:tab2list(?TABLE)]),
     {ok, #state{tab = Tab}}.
 
 handle_call(_Request, _From, State) ->
