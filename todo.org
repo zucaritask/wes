@@ -92,18 +92,21 @@
   - [X] Is it ms or seconds in the timeout handling.
   - [X] Why is the return type form register actor {ok, interger()}.
 
-* Version 0.1.9 [4/5]
+* Version 0.1.9 [6/6]
   - [X] Rename wes channel #state{} to #channel{}
   - [X] Write unit tests for wes_actor
   - [X] Maybe move integration tests in wes_tests.erl to common tests.
-  - [X] State migrations
-  - [ ] Several actors per lock?
+  - [X] Don't use the name locker in any config
+  - [X] Remove config from wes.app.src
+  - [X] Correct erreor message when trying to start running actor
 
-* Version 0.2 [0/5]
+* Version 0.2 [0/4]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.
   The api should be stable and should make sence.
+  - [ ] State migrations
   - [-] Documentation
+    - [ ] Document the config values
     - [ ] Write a HOWTO
     - [ ] Make a rebar template
     - [X] Make a example application
@@ -132,6 +135,7 @@
 * Future/unsorted features
   This is ideas that seems far fetched now, but might be good to have in the
   back of the head.
+  - [ ] Several actors per lock
   - [ ] Consume all timeouts that have expired when getting a timeout message.
   - [ ] Don't call wes_timeout:now_milli/0 in the wes_channel timeout.
   - [ ] Event sourced actors
