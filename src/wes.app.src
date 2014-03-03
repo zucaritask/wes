@@ -10,24 +10,5 @@
                   stdlib
                  ]},
   {mod, { wes_app, []}},
-  {env,
-   [{actors,
-     [
-      [{id, counter},
-       {locker_mod, wes_lock_ets},
-       {locker_conf, []},
-       {cb_mod, wes_example_count},
-       {db_mod, wes_db_ets},
-       {db_conf, []}]
-     ]},
-    {channels,
-     [
-      [{id, session},
-       {locker_mod, wes_lock_ets},
-       {lock_timeout_interval, 1000},
-       {locker_conf, []},
-       {message_timeout, 50000},
-       {stats_mod, wes_stats_ets}]
-     ]}
-   ]}
+  {env, []}
  ]}.
