@@ -106,8 +106,8 @@ init_per_testcase(_TestCase, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_testcase(_TestCase, Config) ->
-    {ok, A} = proplists:get_value(sup, Config),
-    error_logger:error_msg("sup ~p", [erlang:process_info(A)]),
+    {ok, _A} = proplists:get_value(sup, Config),
+    %%error_logger:error_msg("sup ~p", [erlang:process_info(_A)]),
     catch wes_lock_ets:stop(),
     catch wes_stats_ets:stop(),
     catch wes_db_ets:stop([]),
@@ -148,6 +148,7 @@ all() ->
      test_add_actor,
      test_two_actors,
      test_same_actor_twice,
+     test_start_running_actor,
      test_message_timeout,
      test_not_message_timeout,
      test_ensure_actor,
@@ -281,6 +282,23 @@ test_same_actor_twice(_Config) ->
     Actors = [{Actor1, ActorType, []}],
     {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
     ?assertMatch({error, _}, wes_channel:start(ChannelType, Channel2, Actors)),
+    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
+    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
+
+test_start_running_actor() -> [].
+
+test_start_running_actor(_Config) ->
+    Channel1 = session1,
+    Channel2 = session2,
+    ChannelType = session,
+    Actor1 = act1,
+    ActorType = counter,
+    Actors = [{Actor1, ActorType, []}],
+    {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
+    {ok, _Pid2} = wes_channel:start(ChannelType, Channel2, []),
+    ?assertMatch(
+       {error, {error_registing_actor,already_locked}},
+       wes_channel:ensure_actor(ChannelType, Channel2, ActorType, Actor1, [])),
     ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
     ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
 
