@@ -195,7 +195,7 @@ handle_info(Info, State) ->
     %% handling function.
     timeout_reply({noreply, State}).
 
-terminate(Reason, #channel{name = ChannelName, type = ChannelType} = State) ->
+terminate(Reason, #channel{type = ChannelType} = State) ->
     ChannelConfig = wes_config:channel(ChannelType),
     channel__stop(Reason, ChannelConfig, State),
     ok.
