@@ -100,6 +100,11 @@
   - [X] Remove config from wes.app.src
   - [X] Correct erreor message when trying to start running actor
 
+* Version 0.1.10 [3/3]
+  - [X] erlang:error/1 no missing confs in wes_db_s3.
+  - [X] Fix confusion in return value from wes_db_*:read/2
+  - [X] actors should implement from_struct/2, key and value separate args.
+
 * Version 0.2 [0/4]
   The lib should be _useful when prototyping_ a wooga erlang backend.
   It should be easy to write own callbaks.

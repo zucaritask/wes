@@ -1,6 +1,30 @@
 -module(wes_SUITE).
 
--compile(export_all).
+-export([suite/0,
+         init_per_suite/1,
+         end_per_suite/1,
+         init_per_group/2,
+         end_per_group/2,
+         init_per_testcase/2,
+         end_per_testcase/2,
+         groups/0,
+         all/0]).
+
+-export([test_ets/0, test_ets/1,
+         test_stop/0, test_stop/1,
+         test_counters/0, test_counters/1,
+         test_add_actor/0, test_add_actor/1,
+         test_start_running_actor/0, test_start_running_actor/1,
+         test_lock_restart/0, test_lock_restart/1,
+         test_bad_command/0, test_bad_command/1,
+         test_two_actors/0, test_two_actors/1,
+         test_same_actor_twice/0, test_same_actor_twice/1,
+         test_message_timeout/0, test_message_timeout/1,
+         test_not_message_timeout/0, test_not_message_timeout/1,
+         test_ensure_actor/0, test_ensure_actor/1,
+         test_stop_actor/0, test_stop_actor/1,
+         test_no_channel/0, test_no_channel/1
+        ]).
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").

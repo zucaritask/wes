@@ -44,8 +44,8 @@ start_link() ->
 
 read(Key, []) ->
     case ets:lookup(?MODULE, Key) of
-        [{_Key, _Value} = Data] ->
-            {ok, Data};
+        [{_Key, Value}] ->
+            {ok, Value};
         [] ->
             not_found
     end.

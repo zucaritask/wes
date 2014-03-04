@@ -22,7 +22,7 @@ stop(Conf) ->
     supervisor:delete_child(wes_sup, Name).
 
 read(Key, Config) ->
-    Bucket = proplists:get_value(bucket, Config, ""),
+    Bucket = bucket(Config),
     case s3:get(Bucket, Key) of
         {ok, not_found} ->
             not_found;
@@ -35,10 +35,16 @@ read(Key, Config) ->
     end.
 
 write(Key, Value, Config) ->
-    Bucket = proplists:get_value(bucket, Config, ""),
+    Bucket = bucket(Config),
     case s3:put(Bucket, Key, Value, "application/json") of
         {'EXIT', {timeout, _}} ->
             {error, timeout};
         Result ->
             Result
+    end.
+
+bucket(Config) ->
+    case lists:keyfind(bucket, 1, Config) of
+        {bucket, Bucket} -> Bucket;
+        _ -> erlang:error(bucket_not_defined)
     end.

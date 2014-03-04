@@ -10,7 +10,7 @@
          key/1,
          to_struct/2,
          code_change/4,
-         from_struct/1]).
+         from_struct/2]).
 
 init([]) ->
     {ok, 0}.
@@ -35,7 +35,7 @@ key(Actorname) ->
 to_struct(_Actorname, ActorState) ->
     list_to_binary(integer_to_list(ActorState)).
 
-from_struct({_Key, Value}) ->
+from_struct(_Key, Value) ->
     {ok, list_to_integer(binary_to_list(Value))}.
 
 code_change(_StateName, State, 1, []) ->

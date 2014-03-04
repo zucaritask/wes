@@ -33,16 +33,17 @@
 -callback to_struct(ActorName::wes:actor_name(),
                     ActorState::wes:actor_state()) ->
     wes:serialized_actor().
--callback from_struct({Key::wes_db:key(), wes:serialized_actor()}) ->
+-callback from_struct(Key::wes_db:key(), wes:serialized_actor()) ->
     {ok, ActorState::wes:actor_state()}.
 
 init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
-    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf= DbConf,
+    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf,
                   lock_mod = Lockmod} = wes_config:actor(Type),
+    Key = ActorCb:key(ActorName),
     Response =
-        case DbMod:read(ActorCb:key(ActorName), DbConf) of
-            {ok, {_Key, _Value} = Data} ->
-                response(ActorCb:from_struct(Data));
+        case DbMod:read(Key, DbConf) of
+            {ok, Value} ->
+                response(ActorCb:from_struct(Key, Value));
             not_found ->
                 response(ActorCb:init(InitArgs))
         end,
