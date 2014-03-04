@@ -343,9 +343,11 @@ channel__stop(Reason, ChannelConfig, State) ->
       Actors),
     channel_deregister_name(Name, LockerMod).
 
-channel__timeout(message_timeout, _Now, ChannelConfig, State) ->
+channel__timeout(message_timeout, _Now, ChannelConfig,
+                 #channel{actors = Actors} = State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
     StatsMod:stat(timeout, messages),
+    lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors),
     {stop, State};
 channel__timeout(channel_lock_timeout = TimeoutName,
                  Now,
