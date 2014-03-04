@@ -113,14 +113,18 @@ timeout(#actor{name = Name, type = Type, state = State} = Actor,
     #actor_config{lock_mod = Lockmod} = wes_config:actor(Type),
     ok = Lockmod:actor_timeout(Name, ChannelType, ChannelName),
     Response = response({ok, State}),
-    {Actor#actor{state_name = Response#actor_response.state_name,
+    {Actor#actor{state_name =
+                     maybe_overwrite_state_name(
+                       Actor, Response#actor_response.state_name),
                  state = Response#actor_response.state},
      Response#actor_response.stop_channel};
 timeout(#actor{state_name = StateName, type = Type,
                state = ActorState} = Actor, Name) ->
     #actor_config{cb_mod = CbMod} = wes_config:actor(Type),
     Response = response(CbMod:timeout(StateName, Name, ActorState)),
-    {Actor#actor{state_name = Response#actor_response.state_name,
+    {Actor#actor{state_name =
+                     maybe_overwrite_state_name(
+                       Actor, Response#actor_response.state_name),
                  state = Response#actor_response.state},
      Response#actor_response.stop_channel}.
 
@@ -131,14 +135,21 @@ code_change(#actor{state_name = StateName, type = Type, state = State} = Actor,
         true ->
             Response = response(CbMod:code_change(StateName, State, OldVsn,
                                                   Extra)),
-            Actor#actor{state_name = Response#actor_response.state_name,
+            Actor#actor{state_name =
+                            maybe_overwrite_state_name(
+                              Actor, Response#actor_response.state_name),
                         state = Response#actor_response.state};
         false ->
             Actor
     end.
 
+maybe_overwrite_state_name(#actor{state_name = Name}, undefined) -> Name;
+maybe_overwrite_state_name(_, StateName) -> StateName.
+
 response(#actor_response{} = Response) -> Response;
 response({stop, NewState}) ->
-    %% FIXME: Looses trace of state_name.
-    #actor_response{state = NewState, stop_channel = true};
-response({ok, NewState}) -> #actor_response{state = NewState}.
+    #actor_response{
+       state = NewState, stop_channel = true};
+response({ok, NewState}) ->
+    #actor_response{
+       state = NewState}.
