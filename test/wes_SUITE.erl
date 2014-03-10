@@ -45,6 +45,43 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
+    error_logger:tty(false),
+    ok = application:set_env(wes, actors, [
+        [
+            {id, counter},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {cb_mod, wes_example_count},
+            {db_mod, wes_db_ets},
+            {db_conf, []}
+        ],
+        [
+            {id, null_counter},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {cb_mod, wes_example_count},
+            {db_mod, wes_db_null},
+            {db_conf, []}
+        ]
+    ]),
+    ok = application:set_env(wes, channels, [
+        [
+            {id, session},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {lock_timeout_interval, 1000},
+            {message_timeout, 50000},
+            {stats_mod, wes_stats_ets}
+        ],
+        [
+            {id, message_timeout_session},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {lock_timeout_interval, 2000},
+            {message_timeout, 750},
+            {stats_mod, wes_stats_ets}
+        ]
+    ]),
     Config.
 
 %%--------------------------------------------------------------------
@@ -84,42 +121,12 @@ end_per_group(_GroupName, _Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-init_per_testcase(_TestCase, _Config) ->
-    ActorTypes =
-        [
-         [{id, counter},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {cb_mod, wes_example_count},
-          {db_mod, wes_db_ets},
-          {db_conf, []}],
-         [{id, null_counter},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {cb_mod, wes_example_count},
-          {db_mod, wes_db_null},
-          {db_conf, []}]
-        ],
-    ChannelTypes =
-        [
-         [{id, session},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {lock_timeout_interval, 1000},
-          {message_timeout, 50000},
-          {stats_mod, wes_stats_ets}],
-         [{id, message_timeout_session},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {lock_timeout_interval, 2000},
-          {message_timeout, 750},
-          {stats_mod, wes_stats_ets}]
-        ],
-    A = wes_sup:start_link(ActorTypes, ChannelTypes),
+init_per_testcase(_TestCase, Config) ->
+    application:start(wes),
     wes_db_ets:start([]),
     wes_stats_ets:start_link(),
     {ok, _} = wes_lock_ets:start(1000),
-    [{sup, A}].
+    Config.
 
 %%--------------------------------------------------------------------
 %% @spec end_per_testcase(TestCase, Config0) ->
@@ -129,9 +136,8 @@ init_per_testcase(_TestCase, _Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-end_per_testcase(_TestCase, Config) ->
-    {ok, _A} = proplists:get_value(sup, Config),
-    %%error_logger:error_msg("sup ~p", [erlang:process_info(_A)]),
+end_per_testcase(_TestCase, _Config) ->
+    ok = application:stop(wes),
     catch wes_lock_ets:stop(),
     catch wes_stats_ets:stop(),
     catch wes_db_ets:stop([]),
