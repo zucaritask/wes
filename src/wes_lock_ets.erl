@@ -30,14 +30,14 @@ start(Timeout) ->
     Locker = {wes_lock_ets,
               {wes_lock_ets_srv, start_link, [Timeout]},
               permanent, 2000, worker, [wes_lock_ets_srv]},
-    supervisor:start_child(wes_sup, Locker).
+    {ok, _} = supervisor:start_child(wes_sup, Locker).
 
 start_link(Timeout) ->
     wes_lock_ets_srv:start_link(Timeout).
 
 stop() ->
-    supervisor:terminate_child(wes_sup, wes_lock_ets),
-    supervisor:delete_child(wes_sup, wes_lock_ets).
+    ok = supervisor:terminate_child(wes_sup, wes_lock_ets),
+    ok = supervisor:delete_child(wes_sup, wes_lock_ets).
 
 %% ---------------------------------------------------------------------------
 %% Lib callback
@@ -74,7 +74,7 @@ register_actor(Id, ChannelType, ChannelName) ->
                           [Id, ChannelType, ChannelName]),
     case wes_lock_ets_srv:lock({actor, Id}, {ChannelType, ChannelName}) of
         ok -> {ok, [{{lock, ChannelType, ChannelName}, renew_duration()}]};
-        {error, Reason}-> throw({error_registing_actor, Reason})
+        {error, Reason}-> throw({error_registering_actor, Reason})
     end.
 
 unregister_actor(Id, ChannelType, ChannelName) ->

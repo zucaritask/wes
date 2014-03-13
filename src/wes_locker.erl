@@ -30,7 +30,7 @@ start(PrimaryNodes, Replicas, W, LeaseExpireInterval, LockExpireInterval,
                [W, LeaseExpireInterval, LockExpireInterval,
                 PushTransInterval]},
               permanent, 2000, worker, [locker]},
-    supervisor:start_child(wes_sup, Locker),
+    {ok, _} = supervisor:start_child(wes_sup, Locker),
     ok = locker:set_nodes(PrimaryNodes, PrimaryNodes, Replicas).
 
 %% ---------------------------------------------------------------------------

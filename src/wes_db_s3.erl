@@ -18,8 +18,8 @@ start(Conf) ->
 
 stop(Conf) ->
     Name = proplists:get_value(sup_name, Conf, s3_server),
-    supervisor:terminate_child(wes_sup, Name),
-    supervisor:delete_child(wes_sup, Name).
+    ok = supervisor:terminate_child(wes_sup, Name),
+    ok = supervisor:delete_child(wes_sup, Name).
 
 read(Key, Config) ->
     Bucket = bucket(Config),
