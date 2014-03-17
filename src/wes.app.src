@@ -1,7 +1,7 @@
 {application, wes,
  [
   {description, ""},
-  {vsn, "1"},
+  {vsn, "1.0"},
   {registered, []},
   {included_applications,
    [locker, s3erl]},

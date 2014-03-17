@@ -18,7 +18,8 @@
 
 -export([register_name/4,
          deregister_name/3,
-         timeout/2]).
+         timeout/2,
+         spec/2]).
 
 -type state_name()  :: any().
 
@@ -29,32 +30,32 @@
 -callback command(StateName::state_name(), CommandName::any(), CommandArgs::any(),
                   ActorState::wes:actor_state()) ->
     Response::wes:actor_response().
--callback key(ActorName::wes:actor_name()) -> wes_db:key().
--callback to_struct(ActorName::wes:actor_name(),
+-callback key(ActorName::wes:name()) -> wes_db:key().
+-callback to_struct(ActorName::wes:name(),
                     ActorState::wes:actor_state()) ->
     wes:serialized_actor().
 -callback from_struct(Key::wes_db:key(), wes:serialized_actor()) ->
     {ok, ActorState::wes:actor_state()}.
 
-init(ChannelType, ChannelName, {ActorName, Type, InitArgs}) ->
-    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf,
-                  lock_mod = Lockmod} = wes_config:actor(Type),
-    Key = ActorCb:key(ActorName),
-    Response =
-        case DbMod:read(Key, DbConf) of
-            {ok, Value} ->
-                response(ActorCb:from_struct(Key, Value));
-            not_found ->
-                response(ActorCb:init(InitArgs))
-        end,
-    {ok, LockTimeouts} = register_name(ActorName, ChannelType, ChannelName,
-                                       Lockmod),
-    Timeouts = LockTimeouts ++ Response#actor_response.new_timeouts,
-    {#actor{name = ActorName,
-            type = Type,
-            state_name = Response#actor_response.state_name,
-            state = Response#actor_response.state},
-     Timeouts}.
+init(ChannelType, ChannelName, Spec) ->
+    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf}
+        = Config = wes_config:actor(spec(type, Spec)),
+    Key = ActorCb:key(spec(name, Spec)),
+
+    StartType = spec(start_type, Spec),
+
+    case {StartType, DbMod:read(Key, DbConf)} of
+        {create, {ok, _Value}} ->
+            {error, actor_already_exists};
+        {create, not_found} ->
+            Data = ActorCb:init(spec(init_args, Spec)),
+            create_actor(ChannelType, ChannelName, Spec, Data, Config);
+        {load, {ok, Value}} ->
+            Data = ActorCb:from_struct(Key, Value),
+            create_actor(ChannelType, ChannelName, Spec, Data, Config);
+        {load, not_found} ->
+            {error, actor_not_found}
+    end.
 
 name(#actor{name = Name}) -> Name.
 
@@ -121,7 +122,7 @@ timeout(#actor{name = Name, type = Type, state = State} = Actor,
 timeout(#actor{state_name = StateName, type = Type,
                state = ActorState} = Actor, Name) ->
     #actor_config{cb_mod = CbMod} = wes_config:actor(Type),
-    Response = response(CbMod:timeout(StateName, Name, ActorState)),
+    Response = response(CbMod:timeout(StateName, Name, ActorState)), % FIXME: Check if callback exists!
     {Actor#actor{state_name =
                      maybe_overwrite_state_name(
                        Actor, Response#actor_response.state_name),
@@ -143,8 +144,27 @@ code_change(#actor{state_name = StateName, type = Type, state = State} = Actor,
             Actor
     end.
 
-maybe_overwrite_state_name(#actor{state_name = Name}, undefined) -> Name;
-maybe_overwrite_state_name(_, StateName) -> StateName.
+spec(name,       {_, {_, Name}, _})      -> Name;
+spec(type,       {_, {Type, _}, _})      -> Type;
+spec(init_args,  {_, _, InitArgs})       -> InitArgs;
+spec(start_type, {ActorStartType, _, _}) -> ActorStartType.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+create_actor(ChannelType, ChannelName, Spec, Data, Config) ->
+    #actor_config{lock_mod = Lockmod} = Config,
+    Response = response(Data),
+    Name = spec(name, Spec),
+    {ok, LockTimeouts} = register_name(Name, ChannelType, ChannelName,
+                                       Lockmod),
+    Timeouts = LockTimeouts ++ Response#actor_response.new_timeouts,
+    ActorState = #actor{name = Name,
+                        type = spec(type, Spec),
+                        state_name = Response#actor_response.state_name,
+                        state = Response#actor_response.state},
+    {ok, ActorState, Timeouts}.
 
 response(#actor_response{} = Response) -> Response;
 response({stop, NewState}) ->
@@ -153,3 +173,7 @@ response({stop, NewState}) ->
 response({ok, NewState}) ->
     #actor_response{
        state = NewState}.
+
+maybe_overwrite_state_name(#actor{state_name = Name}, undefined) -> Name;
+maybe_overwrite_state_name(_, StateName) -> StateName.
+

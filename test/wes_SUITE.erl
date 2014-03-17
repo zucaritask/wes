@@ -45,6 +45,43 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
+    error_logger:tty(false),
+    ok = application:set_env(wes, actors, [
+        [
+            {id, counter},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {cb_mod, wes_example_count},
+            {db_mod, wes_db_ets},
+            {db_conf, []}
+        ],
+        [
+            {id, null_counter},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {cb_mod, wes_example_count},
+            {db_mod, wes_db_null},
+            {db_conf, []}
+        ]
+    ]),
+    ok = application:set_env(wes, channels, [
+        [
+            {id, session},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {lock_timeout_interval, 1000},
+            {message_timeout, 50000},
+            {stats_mod, wes_stats_ets}
+        ],
+        [
+            {id, message_timeout_session},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {lock_timeout_interval, 2000},
+            {message_timeout, 750},
+            {stats_mod, wes_stats_ets}
+        ]
+    ]),
     Config.
 
 %%--------------------------------------------------------------------
@@ -84,42 +121,12 @@ end_per_group(_GroupName, _Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-init_per_testcase(_TestCase, _Config) ->
-    ActorTypes =
-        [
-         [{id, counter},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {cb_mod, wes_example_count},
-          {db_mod, wes_db_ets},
-          {db_conf, []}],
-         [{id, null_counter},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {cb_mod, wes_example_count},
-          {db_mod, wes_db_null},
-          {db_conf, []}]
-        ],
-    ChannelTypes =
-        [
-         [{id, session},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {lock_timeout_interval, 1000},
-          {message_timeout, 50000},
-          {stats_mod, wes_stats_ets}],
-         [{id, message_timeout_session},
-          {lock_mod, wes_lock_ets},
-          {locker_conf, []},
-          {lock_timeout_interval, 2000},
-          {message_timeout, 750},
-          {stats_mod, wes_stats_ets}]
-        ],
-    A = wes_sup:start_link(ActorTypes, ChannelTypes),
+init_per_testcase(_TestCase, Config) ->
+    application:start(wes),
     wes_db_ets:start([]),
     wes_stats_ets:start_link(),
     {ok, _} = wes_lock_ets:start(1000),
-    [{sup, A}].
+    Config.
 
 %%--------------------------------------------------------------------
 %% @spec end_per_testcase(TestCase, Config0) ->
@@ -129,9 +136,8 @@ init_per_testcase(_TestCase, _Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
-end_per_testcase(_TestCase, Config) ->
-    {ok, _A} = proplists:get_value(sup, Config),
-    %%error_logger:error_msg("sup ~p", [erlang:process_info(_A)]),
+end_per_testcase(_TestCase, _Config) ->
+    ok = application:stop(wes),
     catch wes_lock_ets:stop(),
     catch wes_stats_ets:stop(),
     catch wes_db_ets:stop([]),
@@ -184,227 +190,198 @@ test_counters() ->
     [].
 
 test_counters(_Config) ->
-    Channel = session1,
-    ChannelType = session,
-    Actor = act1,
-    ActorType = null_counter,
-    Actors = [{Actor, ActorType, []}],
+    Channel = {session, test},
+    Actor = {null_counter, one},
+    Spec = {create, Actor, []},
     ?assertEqual([], wes_stats_ets:all_stats()),
-    ?assertMatch({ok, _}, wes_channel:start(ChannelType, Channel, Actors)),
+    ?assertMatch({ok, _}, wes:create_channel(Channel, Spec)),
     ?assertEqual([{{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [])),
+    ?assertEqual(ok, wes:command(Channel, incr, [])),
     ?assertEqual([{{command, incr},1},
                   {{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
+    ?assertEqual(1, wes:read(Actor, counter)),
     ?assertEqual([{{command, incr},1},
                   {{read, counter}, 1},
                   {{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)),
-    ?assertMatch({ok, _}, wes_channel:start(ChannelType, Channel, Actors)),
-    ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)),
+    ?assertMatch({ok, _}, wes:create_channel(Channel, Spec)),
+    ?assertEqual(0, wes:read(Actor, counter)),
     %% Test stats.
     ?assertEqual([{{command, incr},1},
                   {{read, counter}, 2},
                   {{start, actor}, 2},
                   {{start, channel}, 2},
                   {{stop, normal}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_lock_restart() -> [].
 
 test_lock_restart(_Config) ->
-    Channel = hej2,
-    ChannelType = session,
-    Actor = act2,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [])),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
-    wes_channel:stop(ChannelType, Channel),
-    {ok, _OtherPid} = wes_channel:start(ChannelType, Channel, Actors),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    Channel = {session, hej2},
+    Actor = {counter, act2},
+    {ok, _} = wes:create_channel(Channel, [{create, Actor, []}]),
+    ?assertEqual(ok, wes:command(Channel, incr, [])),
+    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)),
+    {ok, _} = wes:create_channel(Channel, [{load, Actor, []}]),
+    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_ets() -> [].
 
 test_ets(_Config) ->
-    Channel = hej3,
-    ChannelType = session,
-    Actor = act3,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    Channel = {session, hej3},
+    Actor = {counter, act3},
+    {ok, _} = wes:create_channel(Channel, [{create, Actor, []}]),
+    ok = wes:command(Channel, incr, []),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
     timer:sleep(1000),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
-    ok = wes_channel:stop(ChannelType, Channel),
-    {ok, _Pid2} = wes_channel:start(ChannelType, Channel, Actors),
+    ?assertEqual(1, wes:read(Actor, counter)),
+    ok = wes:stop_channel(Channel),
+    {ok, _} = wes:create_channel(Channel, [{load, Actor, []}]),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop() -> [].
 
 test_stop(_Config) ->
-    Channel = hej4,
-    ChannelType = session,
-    Actor = act4,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
+    Channel = {session, hej4},
+    Actor = {counter, act4},
+    Specs = [{create, Actor, []}],
+    {ok, _Pid} = wes:create_channel(Channel, Specs),
+    ok = wes:command(Channel, incr, []),
+    ?assertEqual(1, wes:read(Actor, counter)),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    ?assertMatch({ok, _Pid}, wes:status(Channel)),
     %% This should generate a stop by the actor.
-    ok = wes_channel:command(ChannelType, Channel, incr, [0]),
-    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
+    ok = wes:command(Channel, incr, [0]),
+    ?assertMatch({error, not_found}, wes:status(Channel)).
 
 test_bad_command() -> [].
 
 test_bad_command(_Config) ->
-    Channel = hej4,
-    ChannelType = session,
-    Actor = act4,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    Channel = {session, hej4},
+    Actor = {counter, act4},
+    Specs = [{create, Actor, []}],
+    {ok, _Pid} = wes:create_channel(Channel, Specs),
+    ok = wes:command(Channel, incr, []),
     ?assertEqual({error, {negative_increment, -1}},
-                 wes_channel:command(ChannelType, Channel, incr, [-1])),
-    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
+                 wes:command(Channel, incr, [-1])),
+    ?assertMatch({error, not_found}, wes:status(Channel)).
 
 test_two_actors() -> [].
 
 test_two_actors(_Config) ->
-    Channel = session1,
-    ChannelType = session,
-    Actor1 = act1,
-    Actor2 = act2,
-    ActorType = counter,
-    Actors = [{Actor1, ActorType, []}, {Actor2, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor1, counter)),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor2, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    Channel = {session, session1},
+    Actor1 = {counter, act1},
+    Actor2 = {counter, act2},
+    Specs = [{create, Actor1, []}, {create, Actor2, []}],
+    {ok, _Pid} = wes:create_channel(Channel, Specs),
+    ok = wes:command(Channel, incr, []),
+    ?assertEqual(1, wes:read(Actor1, counter)),
+    ?assertEqual(1, wes:read(Actor2, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_same_actor_twice() -> [].
 
 test_same_actor_twice(_Config) ->
-    Channel1 = session1,
-    Channel2 = session2,
-    ChannelType = session,
-    Actor1 = act1,
-    ActorType = counter,
-    Actors = [{Actor1, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
-    ?assertMatch({error, _}, wes_channel:start(ChannelType, Channel2, Actors)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
-    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
+    Channel1 = {session, session1},
+    Channel2 = {session, session2},
+    Actor = {counter, act1},
+    Specs = [{create, Actor, []}],
+    {ok, _} = wes:create_channel(Channel1, Specs),
+    ?assertMatch({error, _}, wes:create_channel(Channel2, Specs)),
+    ?assertEqual(ok, wes:stop_channel(Channel1)),
+    ?assertMatch({error, not_found}, wes:status(Channel2)).
 
 test_start_running_actor() -> [].
 
 test_start_running_actor(_Config) ->
-    Channel1 = session1,
-    Channel2 = session2,
-    ChannelType = session,
-    Actor1 = act1,
-    ActorType = counter,
-    Actors = [{Actor1, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel1, Actors),
-    {ok, _Pid2} = wes_channel:start(ChannelType, Channel2, []),
+    Channel1 = {session, session1},
+    Channel2 = {session, session2},
+    Actor = {counter, act1},
+    Specs = [{create, Actor, []}],
+    {ok, _} = wes:create_channel(Channel1, Specs),
+    {ok, _} = wes:create_channel(Channel2, []),
     ?assertMatch(
-       {error, {error_registing_actor,already_locked}},
-       wes_channel:ensure_actor(ChannelType, Channel2, ActorType, Actor1, [])),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel1)),
-    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel2)).
+       {error, {error_registering_actor,already_locked}},
+       wes:create_actor(Channel2, {create, Actor, []})),
+    ?assertEqual(ok, wes:stop_channel(Channel1)),
+    ?assertMatch({error, not_found}, wes:status(Channel2)).
 
 test_add_actor() -> [].
 
 test_add_actor(_Config) ->
-    Channel = hej5,
-    ChannelType = session,
-    Actor = act5,
-    ActorType = counter,
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, []),
-    wes_channel:register_actor(ChannelType, Channel, ActorType, Actor, []),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    Channel = {session, hej5},
+    Actor = {counter, act5},
+    {ok, _} = wes:create_channel(Channel, []),
+    ok = wes:create_actor(Channel, {create, Actor, []}),
+    ok = wes:command(Channel, incr, []),
+    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_message_timeout() -> [].
 
 test_message_timeout(_Config) ->
-    Channel = hej6,
-    ChannelType = message_timeout_session,
-    Actor = act6,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    Channel = {message_timeout_session, hej6},
+    Actor = {counter, act6},
+    Specs = [{create, Actor, []}],
+    {ok, Ref} = wes:create_channel(Channel, Specs),
+    ok = wes:command(Channel, incr, []),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    ?assertMatch({ok, Ref}, wes:status(Channel)),
     timer:sleep(1000),
-    ?assertMatch({error, not_found}, wes_channel:status(ChannelType, Channel)).
+    ?assertMatch({error, not_found}, wes:status(Channel)).
 
 test_not_message_timeout() ->  [].
 
 test_not_message_timeout(_Config) ->
-    Channel = hej6,
-    ChannelType = message_timeout_session,
-    Actor = act6,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ok = wes_channel:command(ChannelType, Channel, incr, []),
+    Channel = {message_timeout_session, hej6},
+    Actor = {counter, act6},
+    Specs = [{create, Actor, []}],
+    {ok, Ref} = wes:create_channel(Channel, Specs),
+    ok = wes:command(Channel, incr, []),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
+    ?assertMatch({ok, Ref}, wes:status(Channel)),
     timer:sleep(600),
-    ?assertEqual(1, wes_channel:read(ActorType, Actor, counter)),
+    ?assertEqual(1, wes:read(Actor, counter)),
     timer:sleep(600),
-    ?assertMatch({ok, _Pid}, wes_channel:status(ChannelType, Channel)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    ?assertMatch({ok, Ref}, wes:status(Channel)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_ensure_actor() -> [].
 
 test_ensure_actor(_Config) ->
-    Channel = hej7,
-    ChannelType = session,
-    Actor = act7,
-    ActorType = counter,
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, []),
-    ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []),
-    ok = wes_channel:ensure_actor(ChannelType, Channel, ActorType, Actor, []),
-    ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    Channel = {session, hej7},
+    Actor = {counter, act7},
+    Specs = [{create, Actor, []}],
+    {ok, _Pid} = wes:create_channel(Channel, []),
+    ok = wes:create_actor(Channel, Specs),
+    ok = wes:ensure_actor(Channel, Specs),
+    ?assertEqual(0, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop_actor() -> [].
 
 test_stop_actor(_Config) ->
-    Channel = hej4,
-    ChannelType = session,
-    Actor = act4,
-    ActorType = counter,
-    Actors = [{Actor, ActorType, []}],
-    {ok, _Pid} = wes_channel:start(ChannelType, Channel, Actors),
-    ?assertEqual(0, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:command(ChannelType, Channel, incr, [100])),
-    ?assertError(actor_not_active, wes_channel:read(ActorType, Actor, counter)),
-    ?assertEqual(ok, wes_channel:stop(ChannelType, Channel)).
+    Channel = {session, hej4},
+    Actor = {counter, act4},
+    Specs = [{create, Actor, []}],
+    {ok, _Pid} = wes:create_channel(Channel, Specs),
+    ?assertEqual(0, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:command(Channel, incr, [100])),
+    ?assertError(actor_not_active, wes:read(Actor, counter)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_no_channel() -> [].
 
 test_no_channel(_Config) ->
-    Channel = hej4,
-    ChannelType = session,
     ?assertError(channel_not_started,
-                 wes_channel:command(ChannelType, Channel, incr, [100])).
+                 wes:command({session, hej4}, incr, [100])).

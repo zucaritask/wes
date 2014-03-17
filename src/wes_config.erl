@@ -44,8 +44,8 @@ channel(Type) ->
 init([Actors, Channels]) ->
     Tab = ets:new(?TABLE, [named_table, protected,
                            {read_concurrency, true}]),
-    [init_actor(Actor) || Actor <- Actors],
-    [init_channel(Channel) || Channel <- Channels],
+    _ = [ok = init_actor(Actor) || Actor <- Actors],
+    _ = [ok = init_channel(Channel) || Channel <- Channels],
     {ok, #state{tab = Tab}}.
 
 handle_call(_Request, _From, State) ->

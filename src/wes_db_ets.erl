@@ -35,8 +35,8 @@ start(Conf) ->
 
 stop(Conf) ->
     Name = proplists:get_value(sup_name, Conf, ?MODULE),
-    supervisor:terminate_child(wes_sup, Name),
-    supervisor:delete_child(wes_sup, Name).
+    ok = supervisor:terminate_child(wes_sup, Name),
+    ok = supervisor:delete_child(wes_sup, Name).
 
 
 start_link() ->
