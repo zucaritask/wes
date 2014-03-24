@@ -54,7 +54,13 @@ init(ChannelType, ChannelName, Spec) ->
             Data = ActorCb:from_struct(Key, Value),
             create_actor(ChannelType, ChannelName, Spec, Data, Config);
         {load, not_found} ->
-            {error, actor_not_found}
+            {error, actor_not_found};
+        {load_or_create, {ok, Value}} ->
+            Data = ActorCb:from_struct(Key, Value),
+            create_actor(ChannelType, ChannelName, Spec, Data, Config);
+        {load_or_create, not_found} ->
+            Data = ActorCb:init(spec(init_args, Spec)),
+            create_actor(ChannelType, ChannelName, Spec, Data, Config)
     end.
 
 name(#actor{name = Name}) -> Name.

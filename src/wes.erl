@@ -34,7 +34,7 @@
 -type channel() :: {type(), name()}.
 -type actor() :: {type(), name()}.
 -type actor_args() :: [any()].
--type actor_spec() :: {create | load, actor(), actor_args()}.
+-type actor_spec() :: {create | load | load_or_create, actor(), actor_args()}.
 -type actor_specs() :: actor_spec() | [actor_spec()].
 
 -type actor_state()  :: any().
