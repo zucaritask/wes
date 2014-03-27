@@ -5,6 +5,6 @@
 -export([read/2,
          write/3]).
 
-read(_Key, []) -> not_found.
+read(_Key, _) -> not_found.
 
-write(_Key, _Value, []) -> ok.
+write(_Key, _Value, _) -> ok.

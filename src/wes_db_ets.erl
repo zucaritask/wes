@@ -42,7 +42,7 @@ stop(Conf) ->
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-read(Key, []) ->
+read(Key, _) ->
     case ets:lookup(?MODULE, Key) of
         [{_Key, Value}] ->
             {ok, Value};
@@ -50,7 +50,7 @@ read(Key, []) ->
             not_found
     end.
 
-write(Key, Value, []) ->
+write(Key, Value, _) ->
     ets:insert(?MODULE, {Key, Value}),
     ok.
 
