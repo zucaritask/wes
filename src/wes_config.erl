@@ -28,13 +28,13 @@ start_link(Actors, Channels) ->
 actor(Type) ->
     case ets:lookup(?TABLE, {actor, Type}) of
         [{_, ActorConfig}] -> ActorConfig;
-        [] -> throw({actor_not_configured, Type})
+        [] -> error({actor_not_configured, Type})
     end.
 
 channel(Type) ->
     case ets:lookup(?TABLE, {channel, Type}) of
         [{_, ChannelConfig}] -> ChannelConfig;
-        [] -> throw({channel_not_configured, Type})
+        [] -> error({channel_not_configured, Type})
     end.
 
 %%%===================================================================
