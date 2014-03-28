@@ -11,8 +11,8 @@
     ensure_actor/2,
     status/1,
     stop_channel/1,
-    command/3,
-    read/2
+    command/2,
+    command/3
 ]).
 
 -export_type([
@@ -71,9 +71,10 @@ status(Channel) -> wes_channel:status(Channel).
 -spec stop_channel(channel()) -> any().
 stop_channel(Channel) -> wes_channel:stop(Channel).
 
+-spec command(channel(), _) -> any().
+command(Channel, Command) ->
+    wes_channel:command(Channel, {cmd, Command}).
+
 -spec command(channel(), _, _) -> any().
 command(Channel, Command, Payload) ->
-    wes_channel:command(Channel, Command, Payload).
-
--spec read(channel(), _) -> any().
-read(Actor, Key) -> wes_channel:read(Actor, Key).
+    wes_channel:command(Channel, {cmd, Command, Payload}).

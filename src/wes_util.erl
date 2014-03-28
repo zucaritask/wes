@@ -2,7 +2,7 @@
 
 -export([zffoldl/3]).
 
-zffoldl(F, Accu0, [Hd|Tail]) ->
+zffoldl(F, Accu0, [Hd|Tail]) when is_function(F, 2) ->
     case F(Hd, Accu0) of
         {ok, R, Accu1} ->
             {Rs,Accu2} = zffoldl(F, Accu1, Tail),
@@ -11,7 +11,7 @@ zffoldl(F, Accu0, [Hd|Tail]) ->
             {Rs,Accu2} = zffoldl(F, Accu1, Tail),
             {Rs,Accu2}
     end;
-zffoldl(F, Accu, []) when is_function(F, 2) -> {[],Accu}.
+zffoldl(_F, Accu, []) -> {[], Accu}.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

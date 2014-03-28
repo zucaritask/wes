@@ -18,6 +18,7 @@
          test_lock_restart/0, test_lock_restart/1,
          test_bad_command/0, test_bad_command/1,
          test_two_actors/0, test_two_actors/1,
+         test_no_actors/0, test_no_actors/1,
          test_same_actor_twice/0, test_same_actor_twice/1,
          test_message_timeout/0, test_message_timeout/1,
          test_not_message_timeout/0, test_not_message_timeout/1,
@@ -177,6 +178,7 @@ all() ->
      test_bad_command,
      test_add_actor,
      test_two_actors,
+     test_no_actors,
      test_same_actor_twice,
      test_start_running_actor,
      test_message_timeout,
@@ -197,21 +199,21 @@ test_counters(_Config) ->
     ?assertMatch({ok, _}, wes:create_channel(Channel, Spec)),
     ?assertEqual([{{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(ok, wes:command(Channel, incr, [])),
+    ?assertEqual([{Actor, ok}], wes:command(Channel, incr, 1)),
     ?assertEqual([{{command, incr},1},
                   {{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
-    ?assertEqual(1, wes:read(Actor, counter)),
-    ?assertEqual([{{command, incr},1},
-                  {{read, counter}, 1},
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
+    ?assertEqual([{{command, incr}, 1},
+                  {{command, read}, 1},
                   {{start, actor}, 1},
                   {{start, channel}, 1}], wes_stats_ets:all_stats()),
     ?assertEqual(ok, wes:stop_channel(Channel)),
     ?assertMatch({ok, _}, wes:create_channel(Channel, Spec)),
-    ?assertEqual(0, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 0}], wes:command(Channel, read)),
     %% Test stats.
-    ?assertEqual([{{command, incr},1},
-                  {{read, counter}, 2},
+    ?assertEqual([{{command, incr}, 1},
+                  {{command, read}, 2},
                   {{start, actor}, 2},
                   {{start, channel}, 2},
                   {{stop, normal}, 1}], wes_stats_ets:all_stats()),
@@ -223,11 +225,11 @@ test_lock_restart(_Config) ->
     Channel = {session, hej2},
     Actor = {counter, act2},
     {ok, _} = wes:create_channel(Channel, [{create, Actor, []}]),
-    ?assertEqual(ok, wes:command(Channel, incr, [])),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, ok}], wes:command(Channel, incr)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)),
     {ok, _} = wes:create_channel(Channel, [{load, Actor, []}]),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_ets() -> [].
@@ -236,15 +238,15 @@ test_ets(_Config) ->
     Channel = {session, hej3},
     Actor = {counter, act3},
     {ok, _} = wes:create_channel(Channel, [{create, Actor, []}]),
-    ok = wes:command(Channel, incr, []),
+    [{Actor, ok}] = wes:command(Channel, incr),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
     timer:sleep(1000),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     ok = wes:stop_channel(Channel),
     {ok, _} = wes:create_channel(Channel, [{load, Actor, []}]),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop() -> [].
@@ -254,12 +256,12 @@ test_stop(_Config) ->
     Actor = {counter, act4},
     Specs = [{create, Actor, []}],
     {ok, _Pid} = wes:create_channel(Channel, Specs),
-    ok = wes:command(Channel, incr, []),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    [{Actor, ok}] = wes:command(Channel, incr),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
     ?assertMatch({ok, _Pid}, wes:status(Channel)),
     %% This should generate a stop by the actor.
-    ok = wes:command(Channel, incr, [0]),
+    [{Actor, ok}] = wes:command(Channel, incr, 0),
     ?assertMatch({error, not_found}, wes:status(Channel)).
 
 test_bad_command() -> [].
@@ -269,9 +271,9 @@ test_bad_command(_Config) ->
     Actor = {counter, act4},
     Specs = [{create, Actor, []}],
     {ok, _Pid} = wes:create_channel(Channel, Specs),
-    ok = wes:command(Channel, incr, []),
+    [{Actor, ok}] = wes:command(Channel, incr),
     ?assertEqual({error, {negative_increment, -1}},
-                 wes:command(Channel, incr, [-1])),
+                 wes:command(Channel, incr, -1)),
     ?assertMatch({error, not_found}, wes:status(Channel)).
 
 test_two_actors() -> [].
@@ -282,9 +284,17 @@ test_two_actors(_Config) ->
     Actor2 = {counter, act2},
     Specs = [{create, Actor1, []}, {create, Actor2, []}],
     {ok, _Pid} = wes:create_channel(Channel, Specs),
-    ok = wes:command(Channel, incr, []),
-    ?assertEqual(1, wes:read(Actor1, counter)),
-    ?assertEqual(1, wes:read(Actor2, counter)),
+    [{Actor1, ok}, {Actor2, ok}] = lists:sort(wes:command(Channel, incr)),
+    ?assertEqual([{Actor1, 1}, {Actor2, 1}],
+                 lists:sort(wes:command(Channel, read))),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
+
+test_no_actors() -> [].
+
+test_no_actors(_Config) ->
+    Channel = {session, session1},
+    {ok, _Pid} = wes:create_channel(Channel, []),
+    ?assertEqual([], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_same_actor_twice() -> [].
@@ -321,8 +331,8 @@ test_add_actor(_Config) ->
     Actor = {counter, act5},
     {ok, _} = wes:create_channel(Channel, []),
     ok = wes:create_actor(Channel, {create, Actor, []}),
-    ok = wes:command(Channel, incr, []),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    [{Actor, ok}] = wes:command(Channel, incr),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_message_timeout() -> [].
@@ -332,7 +342,7 @@ test_message_timeout(_Config) ->
     Actor = {counter, act6},
     Specs = [{create, Actor, []}],
     {ok, Ref} = wes:create_channel(Channel, Specs),
-    ok = wes:command(Channel, incr, []),
+    [{Actor, ok}] = wes:command(Channel, incr),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
     ?assertMatch({ok, Ref}, wes:status(Channel)),
@@ -346,12 +356,12 @@ test_not_message_timeout(_Config) ->
     Actor = {counter, act6},
     Specs = [{create, Actor, []}],
     {ok, Ref} = wes:create_channel(Channel, Specs),
-    ok = wes:command(Channel, incr, []),
+    [{Actor, ok}] = wes:command(Channel, incr),
     error_logger:error_msg("before sleep tab ~p",
                            [ets:tab2list(wes_lock_ets_srv)]),
     ?assertMatch({ok, Ref}, wes:status(Channel)),
     timer:sleep(600),
-    ?assertEqual(1, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
     timer:sleep(600),
     ?assertMatch({ok, Ref}, wes:status(Channel)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
@@ -365,7 +375,7 @@ test_ensure_actor(_Config) ->
     {ok, _Pid} = wes:create_channel(Channel, []),
     ok = wes:create_actor(Channel, Specs),
     ok = wes:ensure_actor(Channel, Specs),
-    ?assertEqual(0, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 0}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop_actor() -> [].
@@ -375,13 +385,13 @@ test_stop_actor(_Config) ->
     Actor = {counter, act4},
     Specs = [{create, Actor, []}],
     {ok, _Pid} = wes:create_channel(Channel, Specs),
-    ?assertEqual(0, wes:read(Actor, counter)),
-    ?assertEqual(ok, wes:command(Channel, incr, [100])),
-    ?assertError(actor_not_active, wes:read(Actor, counter)),
+    ?assertEqual([{Actor, 0}], wes:command(Channel, read)),
+    ?assertEqual([{Actor, ok}], wes:command(Channel, stop)),
+    ?assertEqual([], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_no_channel() -> [].
 
 test_no_channel(_Config) ->
     ?assertError(channel_not_started,
-                 wes:command({session, hej4}, incr, [100])).
+                 wes:command({session, hej4}, incr, 100)).

@@ -8,9 +8,7 @@
 -export([
     start/2,
     stop/1,
-    command/3,
-    event/3,
-    read/2,
+    command/2,
     status/1,
     add_actors/2,
     ensure_actors/2
@@ -54,30 +52,11 @@ status({ChannelType, ChannelName}) ->
         Pid when is_pid(Pid) -> {ok, Pid}
     end.
 
-command({ChannelType, ChannelName}, CmdName, CmdPayload) ->
+command({ChannelType, ChannelName}, Cmd) ->
     #channel_config{lock_mod = ChannelLockerMod} = Config =
         wes_config:channel(ChannelType),
-    Payload = {command, CmdName, CmdPayload, Config},
+    Payload = {command, Cmd, Config},
     call(ChannelName, ChannelLockerMod, Payload).
-
-event({ChannelType, ChannelName}, EvName, EvPayload) ->
-    #channel_config{lock_mod = LockerMod} = ChannelConfig =
-        wes_config:channel(ChannelType),
-    gen_server:cast(channel_name(ChannelName, LockerMod),
-                    {event, EvName, EvPayload, ChannelConfig}).
-
-read({ActorType, ActorName}, Message) ->
-    #actor_config{lock_mod = ActorLockerMod} = ActorConfig =
-        wes_config:actor(ActorType),
-    case actor_name_to_channel(ActorName, ActorLockerMod) of
-        {ChannelType, ChannelName} ->
-            #channel_config{lock_mod = ChannelLockerMod} = ChannelConfig =
-                wes_config:channel(ChannelType),
-            Payload = {read, ActorName, Message, ChannelConfig, ActorConfig},
-            call(ChannelName, ChannelLockerMod, Payload);
-        undefined ->
-            erlang:error(actor_not_active)
-    end.
 
 add_actors({ChannelType, ChannelName}, Specs) ->
     #channel_config{lock_mod = ChannelLockerMod} = ChannelConfig =
@@ -102,9 +81,6 @@ call(ChannelName, ChannelLockerMod, Payload) ->
 channel_name(ChannelName, LockerMod) ->
     {via, LockerMod, ChannelName}.
 
-actor_name_to_channel(ActorName, LockerMod) ->
-    LockerMod:channel_for_actor(ActorName).
-
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -119,34 +95,29 @@ init([ChannelType, ChannelName, Actors, _Config]) ->
             {stop, Error}
     end.
 
-handle_call({command, CmdName, _CmdPayload, ChannelConfig}, _From,
+handle_call({command, Cmd, ChannelConfig}, _From,
             #channel{actors = []} = State) ->
-    channel__dead_letter_handle(CmdName, ChannelConfig, State),
+    channel__dead_letter_handle(Cmd, ChannelConfig, State),
     Now = wes_timeout:now_milli(),
     State2 = update_message_timeout(State, Now),
-    timeout_reply({reply, ok, State2});
-handle_call({command, CmdName, CmdPayload, ChannelConfig}, _From, State) ->
+    timeout_reply({reply, [], State2});
+handle_call({command, Cmd, ChannelConfig}, _From, State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
     Now = wes_timeout:now_milli(),
     try
-        {NewActors, ShouldStop} = channel__command(CmdName, CmdPayload, State),
+        {NewActors, Responses, ShouldStop} = channel__command(Cmd, State),
         if ShouldStop ->
-                {stop, normal, ok, State#channel{actors = NewActors}};
+                {stop, normal, Responses, State#channel{actors = NewActors}};
            true ->
                 State2 = update_message_timeout(State, Now),
-                timeout_reply({reply, ok, State2#channel{actors = NewActors}})
+                timeout_reply(
+                    {reply, Responses, State2#channel{actors = NewActors}})
         end
     catch throw:Reason ->
             {stop, normal, {error, Reason}, State}
     after
-        StatsMod:stat(command, CmdName)
+        StatsMod:stat(command, cmd_name(Cmd))
     end;
-handle_call({read, ActorName, Name, ChannelConfig, ActorConfig}, _From,
-            State) ->
-    Now = wes_timeout:now_milli(),
-    Reply = channel__read(ActorName, Name, ChannelConfig, ActorConfig, State),
-    State2 = update_message_timeout(State, Now),
-    timeout_reply({reply, Reply, State2});
 handle_call({Action, Specs, Config}, _From, State)
   when Action == add; Action == ensure ->
     case do(Action, Specs, Config, State) of
@@ -158,22 +129,6 @@ handle_call({Action, Specs, Config}, _From, State)
 handle_call(stop, _From, State) ->
     {stop, normal, ok, State}.
 
-handle_cast({event, EvName, EvPayload, ChannelConfig}, State) ->
-    #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    Now = wes_timeout:now_milli(),
-    try
-        {NewActors, ShouldStop} = channel__command(EvName, EvPayload, State),
-        if ShouldStop ->
-                {stop, normal, State#channel{actors = NewActors}};
-           true ->
-                State2 = update_message_timeout(State, Now),
-                timeout_reply({noreply, State2#channel{actors = NewActors}})
-        end
-    catch throw:_Reason ->
-            {stop, normal, State}
-    after
-        StatsMod:stat(event, EvName)
-    end;
 handle_cast(_Msg, State) ->
     timeout_reply({noreply, State}).
 
@@ -294,35 +249,29 @@ init_actor(ChannelType, ChannelName, Actor, Now, TimeOuts, StatsMod) ->
             throw(Reason)
     end.
 
-channel__dead_letter_handle(CmdName, Config, State) ->
+channel__dead_letter_handle(Cmd, Config, State) ->
     #channel{name = ChannelName} = State,
     #channel_config{stats_mod = StatsMod} = Config,
     error_logger:error_msg("Channel has no actors ~p got command ~p",
-                           [ChannelName, CmdName]),
-    StatsMod:stat(command, CmdName).
+                           [ChannelName, Cmd]),
+    StatsMod:stat(command, cmd_name(Cmd)).
 
-channel__command(CmdName, CmdPayload, State) ->
+channel__command(Cmd, State) ->
     #channel{actors = Actors, type = ChannelType, name = ChannelName} = State,
-    wes_util:zffoldl(
-      fun(A0, Stop) ->
-              case wes_actor:act(A0, CmdName, CmdPayload) of
-                  {Actor, AStop, true} ->
+    {NewActors, {Responses, ShouldStop}} = wes_util:zffoldl(
+      fun(A0, {Responses, Stop}) ->
+              case wes_actor:act(A0, Cmd) of
+                  {Actor, Response, AStop, true} ->
                       wes_actor:save(Actor),
-                      wes_actor:deregister_name(Actor, ChannelType,ChannelName),
-                      {false, Stop or AStop};
-                  {Actor, AStop, false} ->
-                      {ok, Actor, Stop or AStop}
+                      wes_actor:deregister_name(Actor, ChannelType, ChannelName),
+                      {false, {[Response|Responses], Stop or AStop}};
+                  {Actor, Response, AStop, false} ->
+                      {ok, Actor, {[Response|Responses], Stop or AStop}}
               end
       end,
-      false,
-      Actors).
-
-channel__read(ActorName, Name, ChannelConfig, ActorConfig, State) ->
-    #channel{actors = Actors} = State,
-    #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    Actor = wes_actor:list_get(ActorName, Actors),
-    StatsMod:stat(read, Name),
-    wes_actor:read(Actor, Name, ActorConfig).
+      {[], false},
+      Actors),
+    {NewActors, Responses, ShouldStop}.
 
 channel__register_actor(Spec, Config, Now, State) ->
     #channel{actors = Actors, name = ChannelName,
@@ -372,6 +321,9 @@ channel__timeout({actor_timeout, ActorName, TimeoutData} = TimeoutName,
     wes_actor:timeout(wes_actor:list_get(ActorName, Actors), TimeoutData),
     NewTimeouts = wes_timeout:reset(TimeoutName, Now, Timeouts),
     State#channel{timeouts = NewTimeouts}.
+
+cmd_name({cmd, Cmd})           -> Cmd;
+cmd_name({cmd, Cmd, _Payload}) -> Cmd.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

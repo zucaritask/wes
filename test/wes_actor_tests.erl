@@ -54,8 +54,9 @@ test_act() ->
                        state = State0},
     ?assertMatch({#actor{name = ActorName,
                          type = ActorType},
+                  {{ActorType, ActorName}, ok},
                   false, false},
-                 wes_actor:act(ActState0, incr, [99])).
+                 wes_actor:act(ActState0, {cmd, incr, 99})).
 
 test_timeout() ->
     InitArgs = [],
