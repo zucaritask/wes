@@ -4,4 +4,5 @@
          stop_channel = false :: boolean(),
          stop_actor = false :: boolean(),
          new_timeouts = [] :: list(), %% FIXME: more precise type
-         events = [] :: list()}). %% FIXME: more precise type
+         events = [] :: list(), %% FIXME: more precise type
+         value = ok :: term()}).

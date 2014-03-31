@@ -6,8 +6,7 @@
 
 -export([init/3,
          save/1,
-         read/2, read/3,
-         act/3,
+         act/2,
          name/1,
          code_change/3
          ]).
@@ -26,7 +25,9 @@
 -export_type([state_name/0]).
 
 -callback init(InitArgs::any()) ->  Response::wes:actor_response().
--callback read(Name::any(), ActorState::wes:actor_state()) -> View::any().
+-callback command(StateName::state_name(), CommandName::any(),
+                  ActorState::wes:actor_state()) ->
+    Response::wes:actor_response().
 -callback command(StateName::state_name(), CommandName::any(), CommandArgs::any(),
                   ActorState::wes:actor_state()) ->
     Response::wes:actor_response().
@@ -89,20 +90,18 @@ list_find(ActorName, Actors) ->
             false
     end.
 
-read(#actor{type = Type} = Actor, Message) ->
-    read(Actor, Message, wes_config:actor(Type)).
-
-read(#actor{state = ActorState}, Message,
-     #actor_config{cb_mod = CbMod}) ->
-    CbMod:read(Message, ActorState).
-
 act(#actor{state_name = StateName, type = Type, state = ActorState} = Actor,
-    CmdName, CmdPayload) ->
+    Command) ->
     #actor_config{cb_mod = CbMod} = wes_config:actor(Type),
-    Response = response(CbMod:command(StateName, CmdName, CmdPayload,
-                                      ActorState)),
+    Response = case Command of
+        {cmd, Cmd, CmdPayload} ->
+            response(CbMod:command(StateName, Cmd, CmdPayload, ActorState));
+        {cmd, Cmd} ->
+            response(CbMod:command(StateName, Cmd, ActorState))
+    end,
     {Actor#actor{state_name = Response#actor_response.state_name,
                  state = Response#actor_response.state},
+     {actor_id(Actor), Response#actor_response.value},
      Response#actor_response.stop_channel,
      Response#actor_response.stop_actor}.
 
@@ -172,14 +171,16 @@ create_actor(ChannelType, ChannelName, Spec, Data, Config) ->
                         state = Response#actor_response.state},
     {ok, ActorState, Timeouts}.
 
-response(#actor_response{} = Response) -> Response;
+response(#actor_response{} = Response) ->
+    Response;
 response({stop, NewState}) ->
-    #actor_response{
-       state = NewState, stop_channel = true};
+    #actor_response{state = NewState, stop_channel = true};
 response({ok, NewState}) ->
-    #actor_response{
-       state = NewState}.
+    #actor_response{state = NewState};
+response({reply, Value, NewState}) ->
+    #actor_response{state = NewState, value = Value}.
 
 maybe_overwrite_state_name(#actor{state_name = Name}, undefined) -> Name;
 maybe_overwrite_state_name(_, StateName) -> StateName.
 
+actor_id(#actor{type = Type, name = Name}) -> {Type, Name}.
