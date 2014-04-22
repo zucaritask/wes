@@ -20,8 +20,8 @@
          channel_for_actor/1]).
 
 %% Channel stuff
--export([channel_timeout/1]).
-
+-export([channel_timeout/1,
+         lock_renew_duration/0]).
 
 %% ---------------------------------------------------------------------------
 %% User API
@@ -66,14 +66,14 @@ register_name(Id, Pid) ->
     ok = wes_lock_ets_srv:lock({channel, Id}, Pid),
     yes.
 
-renew_duration() ->
+lock_renew_duration() ->
     1000.
 
 register_actor(Id, ChannelType, ChannelName) ->
     error_logger:info_msg("registering actor ~p ~p ~p",
                           [Id, ChannelType, ChannelName]),
     case wes_lock_ets_srv:lock({actor, Id}, {ChannelType, ChannelName}) of
-        ok -> {ok, [{{lock, ChannelType, ChannelName}, renew_duration()}]};
+        ok -> {ok, [{{lock, ChannelType, ChannelName}, lock_renew_duration()}]};
         {error, Reason}-> throw({error_registering_actor, Reason})
     end.
 

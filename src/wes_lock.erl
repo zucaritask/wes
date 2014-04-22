@@ -26,3 +26,6 @@
 
 -callback channel_timeout(ChannelName::any()) ->
     ok | {error, Reason::atom()}.
+
+-callback lock_renew_duration() ->
+    infinite | integer().

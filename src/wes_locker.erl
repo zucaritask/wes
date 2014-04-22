@@ -18,7 +18,8 @@
          channel_for_actor/1]).
 
 %% Channel stuff
--export([channel_timeout/1]).
+-export([channel_timeout/1,
+         lock_renew_duration/0]).
 
 %% ---------------------------------------------------------------------------
 %% User API
@@ -58,24 +59,24 @@ unregister_name(Id) ->
     ok.
 
 register_name(Id, Pid) ->
-    case locker:lock({channel, Id}, Pid, locker_lease_duration()) of
+    case locker:lock({channel, Id}, Pid, lock_lease_duration()) of
         {ok, _, _, _} ->
             yes;
         {error, no_quorum} ->
             no
     end.
 
-locker_lease_duration() ->
+lock_lease_duration() ->
     1000 * 60 * 5. %% FIXME config.
 
-locker_renew_duration() ->
+lock_renew_duration() ->
     1000 * 60 * 2. %% FIXME config.
 
 register_actor(Id, ChannelType, ChannelName) ->
     case locker:lock({actor, Id}, {ChannelType, ChannelName},
-                     locker_lease_duration()) of
+                     lock_lease_duration()) of
         {ok, _, _, _} ->
-            {ok, [{{lock, ChannelType, ChannelName}, locker_renew_duration()}]};
+            {ok, [{{lock, ChannelType, ChannelName}, lock_renew_duration()}]};
         {error, no_quorum} ->
             {error, no_quorum}
     end.
@@ -94,7 +95,7 @@ channel_for_actor(Id) ->
 
 actor_timeout(Name, ChannelType, ChannelName) ->
     locker:extend_lease({actor, Name}, {ChannelType, ChannelName},
-                        locker_lease_duration()).
+                        lock_lease_duration()).
 
 channel_timeout(Channel) ->
-    locker:extend_lease(Channel, self(), locker_lease_duration()).
+    locker:extend_lease(Channel, self(), lock_lease_duration()).

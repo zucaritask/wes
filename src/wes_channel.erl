@@ -223,9 +223,13 @@ channel__init(ChannelType, ChannelName, Actors, ChannelConfig) ->
     State = #channel{name = ChannelName, type = ChannelType},
 
     MTimeout = ChannelConfig#channel_config.message_timeout,
+    #channel_config{lock_mod = LockerMod} = ChannelConfig,
+    ChannelLockTimeout = LockerMod:lock_renew_duration(),
     Now = wes_timeout:now_milli(),
     Timeouts = State#channel.timeouts,
-    NewTimeouts = wes_timeout:add(message_timeout, MTimeout, Now, Timeouts),
+    Timeouts1 = wes_timeout:add(message_timeout, MTimeout, Now, Timeouts),
+    NewTimeouts = wes_timeout:add(channel_lock_timeout, ChannelLockTimeout, Now,
+                                  Timeouts1),
 
     NewState = State#channel{timeouts = NewTimeouts},
 

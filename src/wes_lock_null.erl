@@ -15,7 +15,8 @@
          channel_for_actor/1]).
 
 %% Channel stuff
--export([channel_timeout/1]).
+-export([channel_timeout/1,
+         lock_renew_duration/0]).
 
 send(Id, Event) ->
     exit({badarg, {Id, Event}}).
@@ -43,3 +44,6 @@ actor_timeout(_Name, _ChannelType, _ChannelName) ->
 
 channel_timeout(_Channel) ->
     ok.
+
+lock_renew_duration() ->
+    infinite.
