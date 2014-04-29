@@ -44,7 +44,7 @@ extend_lease(Id, Value) ->
 init([Timeout]) ->
     {ok, #state{
             timeout = Timeout,
-            tab = ets:new(?MODULE, [named_table])}}.
+            tab = ets:new(?MODULE, [named_table, public])}}.
 
 handle_call({read, Id}, _From, #state{tab = Tab} = State) ->
     Now = now_seconds(),

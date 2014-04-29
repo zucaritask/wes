@@ -9,4 +9,5 @@
         {lock_mod,
          stats_mod,
          message_timeout,
+         save_timeout,
          lock_timeout_interval}).

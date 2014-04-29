@@ -12,6 +12,7 @@
 
 -export([test_ets/0, test_ets/1,
          test_stop/0, test_stop/1,
+         test_save_timeout/0, test_save_timeout/1,
          test_counters/0, test_counters/1,
          test_add_actor/0, test_add_actor/1,
          test_start_running_actor/0, test_start_running_actor/1,
@@ -71,6 +72,7 @@ init_per_suite(Config) ->
             {lock_mod, wes_lock_ets},
             {lock_conf, []},
             {lock_timeout_interval, 1000},
+            {save_timeout, 1000},
             {message_timeout, 50000},
             {stats_mod, wes_stats_ets}
         ],
@@ -79,6 +81,7 @@ init_per_suite(Config) ->
             {lock_mod, wes_lock_ets},
             {lock_conf, []},
             {lock_timeout_interval, 2000},
+            {save_timeout, 1000},
             {message_timeout, 750},
             {stats_mod, wes_stats_ets}
         ]
@@ -169,23 +172,22 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_counters,
-     test_lock_restart,
+    [test_add_actor,
+     test_bad_command,
      test_counters,
+     test_ensure_actor,
      test_ets,
      test_lock_restart,
-     test_stop,
-     test_bad_command,
-     test_add_actor,
-     test_two_actors,
-     test_no_actors,
-     test_same_actor_twice,
-     test_start_running_actor,
      test_message_timeout,
+     test_no_actors,
+     test_no_channel,
      test_not_message_timeout,
-     test_ensure_actor,
+     test_same_actor_twice,
+     test_save_timeout,
+     test_start_running_actor,
+     test_stop,
      test_stop_actor,
-     test_no_channel
+     test_two_actors
     ].
 
 test_counters() ->
@@ -247,6 +249,23 @@ test_ets(_Config) ->
     {ok, _} = wes:create_channel(Channel, [{load, Actor, []}]),
     io:format("tab ~p", [ets:tab2list(wes_lock_ets_srv)]),
     ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
+
+test_save_timeout() -> [].
+
+test_save_timeout(_Config) ->
+    Channel = {session, save_timeout_chan},
+    Actor = {counter, save_timeout_act},
+    ?assertMatch({ok, _}, wes:create_channel(Channel, [{create, Actor, []}])),
+    ?assertMatch([{Actor, ok}], wes:command(Channel, incr)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
+    timer:sleep(2000),
+    {ok, Pid} = wes_channel:status(Channel),
+    exit(Pid, kill),
+    true = ets:delete_all_objects(wes_lock_ets_srv),
+    error_logger:error_msg("tab ~p", [ets:tab2list(wes_db_ets)]),
+    ?assertMatch({ok, _}, wes:ensure_channel(Channel, [{load, Actor, []}])),
+    ?assertMatch([{Actor, _}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop() -> [].

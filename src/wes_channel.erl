@@ -78,6 +78,7 @@ call(ChannelName, ChannelLockerMod, Payload) ->
 %% ---------------------------------------------------------------------------
 %% API Helpers
 
+channel_name(Pid, _LockerMod) when is_pid(Pid) -> Pid;
 channel_name(ChannelName, LockerMod) ->
     {via, LockerMod, ChannelName}.
 
@@ -223,13 +224,15 @@ channel__init(ChannelType, ChannelName, Actors, ChannelConfig) ->
     State = #channel{name = ChannelName, type = ChannelType},
 
     MTimeout = ChannelConfig#channel_config.message_timeout,
+    STimeout = ChannelConfig#channel_config.save_timeout,
     #channel_config{lock_mod = LockerMod} = ChannelConfig,
     ChannelLockTimeout = LockerMod:lock_renew_duration(),
     Now = wes_timeout:now_milli(),
     Timeouts = State#channel.timeouts,
     Timeouts1 = wes_timeout:add(message_timeout, MTimeout, Now, Timeouts),
+    Timeouts2 = wes_timeout:add(save_timeout, STimeout, Now, Timeouts1),
     NewTimeouts = wes_timeout:add(channel_lock_timeout, ChannelLockTimeout, Now,
-                                  Timeouts1),
+                                  Timeouts2),
 
     NewState = State#channel{timeouts = NewTimeouts},
 
@@ -304,6 +307,12 @@ channel__timeout(message_timeout, _Now, ChannelConfig, State) ->
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
     StatsMod:stat(timeout, messages),
     {stop, State};
+channel__timeout(save_timeout = TimeoutName,
+                 Now, _ChannelConfig, State) ->
+    #channel{timeouts = Timeouts, actors = Actors} = State,
+    lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors),
+    NewTimeouts = wes_timeout:reset(TimeoutName, Now, Timeouts),
+    State#channel{timeouts = NewTimeouts};
 channel__timeout(channel_lock_timeout = TimeoutName,
                  Now,
                  ChannelConfig,
@@ -354,6 +363,7 @@ channel_timeout_test() ->
     ChannelConfig = #channel_config{lock_mod = wes_lock_null,
                                     lock_timeout_interval = Interval,
                                     message_timeout = 300,
+                                    save_timeout = 300,
                                     stats_mod = wes_stats_null},
     TimeoutNow = 59,
     TimeoutMsg = channel_lock_timeout,

@@ -85,6 +85,7 @@ init_channel(Channel) ->
                 lock_mod = proplists:get_value(lock_mod, Channel),
                 stats_mod = proplists:get_value(stats_mod, Channel),
                 message_timeout = proplists:get_value(message_timeout, Channel),
+                save_timeout = proplists:get_value(save_timeout, Channel),
                 lock_timeout_interval =
                     proplists:get_value(lock_timeout_interval, Channel)
                },
