@@ -94,8 +94,8 @@ channel_for_actor(Id) ->
     end.
 
 actor_timeout(Name, ChannelType, ChannelName) ->
-    locker:extend_lease({actor, Name}, {ChannelType, ChannelName},
-                        lock_lease_duration()).
+    ok = locker:extend_lease({actor, Name}, {ChannelType, ChannelName},
+                             lock_lease_duration()).
 
 channel_timeout(Channel) ->
-    locker:extend_lease(Channel, self(), lock_lease_duration()).
+    ok = locker:extend_lease({channel, Channel}, self(), lock_lease_duration()).
