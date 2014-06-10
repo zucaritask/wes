@@ -88,12 +88,18 @@ channel_name(ChannelName, LockerMod) ->
 
 init([ChannelType, ChannelName, Actors, _Config]) ->
     ChannelConfig = wes_config:channel(ChannelType),
-    case channel__init(ChannelType, ChannelName, Actors, ChannelConfig) of
+    try channel__init(ChannelType, ChannelName, Actors, ChannelConfig) of
         {ok, State} ->
             timeout_reply({ok, State});
         {Error, State} ->
             channel__stop(Error, ChannelConfig, State),
             {stop, Error}
+    catch _:_ ->
+            %% Something crashed in a callback.
+            %% we need to cleanup the actor lock manually, since terminate isn't
+            %% called after a unsuccesful init.
+            channel__init_cleanup(ChannelName, ChannelType, ChannelConfig,
+                                  Actors)
     end.
 
 handle_call({command, Cmd, ChannelConfig}, _From,
@@ -289,6 +295,15 @@ channel__register_actor(Spec, Config, Now, State) ->
     ActorName = wes_actor:spec(name, Spec),
     NewActors = wes_actor:list_add(ActorName, ActorState, Actors),
     State#channel{actors = NewActors, timeouts = NewTimeouts}.
+
+channel__init_cleanup(Name, ChannelType, ChannelConfig, Actors) ->
+    #channel_config{stats_mod = StatsMod} = ChannelConfig,
+    %% Don't fail to deregister actors if the statsmod fail
+    catch StatsMod:stat(stop, error),
+    lists:foreach(
+      fun(A0) -> catch wes_actor:deregister_name(A0, ChannelType, Name) end,
+      Actors).
+
 
 channel__stop(Reason, ChannelConfig, State) ->
     #channel{type = ChannelType, name = Name, actors = Actors} = State,
