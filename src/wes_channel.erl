@@ -95,9 +95,9 @@ init([ChannelType, ChannelName, Actors, _Config]) ->
             channel__stop(Error, ChannelConfig, State),
             {stop, Error}
     catch _:_ ->
-            %% Something crashed in a callback.
-            %% we need to cleanup the actor lock manually, since terminate isn't
-            %% called after a unsuccesful init.
+            %% Something crashed (probably in a callback module).
+            %% We need to cleanup the actor locks manually, since
+            %% terminate/2 isn't called after an unsuccesful init.
             channel__init_cleanup(ChannelName, ChannelType, ChannelConfig,
                                   Actors)
     end.
@@ -301,6 +301,7 @@ channel__init_cleanup(Name, ChannelType, ChannelConfig, Actors) ->
     %% Don't fail to deregister actors if the statsmod fail
     catch StatsMod:stat(stop, error),
     lists:foreach(
+      %% Catch deregister since we don't know if the lock has been taken.
       fun(A0) -> catch wes_actor:deregister_name(A0, ChannelType, Name) end,
       Actors).
 
