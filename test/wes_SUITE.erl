@@ -13,6 +13,7 @@
 -export([test_ets/0, test_ets/1,
          test_stop/0, test_stop/1,
          test_save_timeout/0, test_save_timeout/1,
+         test_should_save/0, test_should_save/1,
          test_counters/0, test_counters/1,
          test_add_actor/0, test_add_actor/1,
          test_start_running_actor/0, test_start_running_actor/1,
@@ -63,6 +64,14 @@ init_per_suite(Config) ->
             {lock_conf, []},
             {cb_mod, wes_example_count},
             {db_mod, wes_db_null},
+            {db_conf, []}
+        ],
+        [
+            {id, should_save_example},
+            {lock_mod, wes_lock_ets},
+            {lock_conf, []},
+            {cb_mod, wes_example_should_save},
+            {db_mod, wes_db_ets},
             {db_conf, []}
         ]
     ]),
@@ -184,6 +193,7 @@ all() ->
      test_not_message_timeout,
      test_same_actor_twice,
      test_save_timeout,
+     test_should_save,
      test_start_running_actor,
      test_stop,
      test_stop_actor,
@@ -266,6 +276,39 @@ test_save_timeout(_Config) ->
     error_logger:error_msg("tab ~p", [ets:tab2list(wes_db_ets)]),
     ?assertMatch({ok, _}, wes:ensure_channel(Channel, [{load, Actor, []}])),
     ?assertMatch([{Actor, _}], wes:command(Channel, read)),
+    ?assertEqual(ok, wes:stop_channel(Channel)).
+
+test_should_save() -> [].
+
+test_should_save(_Config) ->
+    Channel = {session, should_save},
+    Actor = {should_save_example, should_save},
+    ?assertMatch({ok, _}, wes:create_channel(Channel, [{create, Actor, []}])),
+    ?assertMatch([{Actor, ok}], wes:command(Channel, incr)),
+    ?assertEqual([{Actor, 1}], wes:command(Channel, read)),
+    timer:sleep(2000), %% wait for save
+
+    {ok, Pid} = wes_channel:status(Channel), %% kill process and dirty clean
+    exit(Pid, kill),
+    true = ets:delete_all_objects(wes_lock_ets_srv),
+    error_logger:error_msg("tab1 ~p", [ets:tab2list(wes_db_ets)]),
+
+    %% Data should not be saved
+    ?assertMatch({ok, _}, wes:create_channel(Channel, [{create, Actor, []}])),
+    ?assertEqual([{Actor, 0}], wes:command(Channel, read)),
+    %% Big enough increase to trigger write
+    ?assertMatch([{Actor, ok}], wes:command(Channel, incr, 10)),
+    timer:sleep(2000),
+
+    %% kill process
+    {ok, Pid2} = wes_channel:status(Channel),
+    exit(Pid2, kill),
+    true = ets:delete_all_objects(wes_lock_ets_srv),
+    error_logger:error_msg("tab2 ~p", [ets:tab2list(wes_db_ets)]),
+
+    %% Data should be saved
+    ?assertMatch({ok, _}, wes:ensure_channel(Channel, [{load, Actor, []}])),
+    ?assertEqual([{Actor, 10}], wes:command(Channel, read)),
     ?assertEqual(ok, wes:stop_channel(Channel)).
 
 test_stop() -> [].

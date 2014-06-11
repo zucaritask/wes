@@ -71,9 +71,15 @@ save(#actor{state_name = StateName,
             state = ActorState}) ->
     #actor_config{db_mod = DbMod, cb_mod = CbMod, db_conf = DbConf} =
         wes_config:actor(Type),
-    DbMod:write(CbMod:key(ActorName),
-                CbMod:to_struct(StateName, ActorState),
-                DbConf).
+    case erlang:function_exported(CbMod, should_save, 2) andalso
+        not CbMod:should_save(StateName, ActorState) of
+        true -> %% Should write exported and it didn't return true
+            ok;
+        false ->
+            DbMod:write(CbMod:key(ActorName),
+                        CbMod:to_struct(StateName, ActorState),
+                        DbConf)
+    end.
 
 list_add(ActorName, Actor, Actors) ->
     lists:keystore(ActorName, #actor.name, Actors, Actor).
