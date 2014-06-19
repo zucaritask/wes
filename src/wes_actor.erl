@@ -41,6 +41,7 @@
 init(ChannelType, ChannelName, Spec) ->
     #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf}
         = Config = wes_config:actor(spec(type, Spec)),
+    InitArgs = spec(init_args, Spec),
     Key = ActorCb:key(spec(name, Spec)),
 
     StartType = spec(start_type, Spec),
@@ -49,18 +50,18 @@ init(ChannelType, ChannelName, Spec) ->
         {create, {ok, _Value}} ->
             {error, actor_already_exists};
         {create, not_found} ->
-            Data = ActorCb:init(spec(init_args, Spec)),
+            Data = ActorCb:init(InitArgs),
             create_actor(ChannelType, ChannelName, Spec, Data, Config);
         {load, {ok, Value}} ->
-            Data = ActorCb:from_struct(Key, Value),
+            Data = ActorCb:from_struct(InitArgs, Value),
             create_actor(ChannelType, ChannelName, Spec, Data, Config);
         {load, not_found} ->
             {error, actor_not_found};
         {load_or_create, {ok, Value}} ->
-            Data = ActorCb:from_struct(Key, Value),
+            Data = ActorCb:from_struct(InitArgs, Value),
             create_actor(ChannelType, ChannelName, Spec, Data, Config);
         {load_or_create, not_found} ->
-            Data = ActorCb:init(spec(init_args, Spec)),
+            Data = ActorCb:init(InitArgs),
             create_actor(ChannelType, ChannelName, Spec, Data, Config)
     end.
 
