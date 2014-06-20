@@ -94,12 +94,15 @@ init([ChannelType, ChannelName, Actors, _Config]) ->
         {Error, State} ->
             channel__stop(Error, ChannelConfig, State),
             {stop, Error}
-    catch _:_ ->
+    catch ErrType:ErrReason ->
+            error_logger:error_msg("Wes channel start error ~p:~p",
+                                   [ErrType, ErrReason]),
             %% Something crashed (probably in a callback module).
             %% We need to cleanup the actor locks manually, since
             %% terminate/2 isn't called after an unsuccesful init.
             channel__init_cleanup(ChannelName, ChannelType, ChannelConfig,
-                                  Actors)
+                                  Actors),
+            {stop, ErrReason}
     end.
 
 handle_call({command, Cmd, ChannelConfig}, _From,
