@@ -11,6 +11,8 @@
          code_change/3
          ]).
 
+-export([dirty_db_val/1]).
+
 -export([list_add/3,
          list_get/2,
          list_find/2]).
@@ -63,6 +65,15 @@ init(ChannelType, ChannelName, Spec) ->
             Data = ActorCb:init(spec(init_args, Spec)),
             create_actor(ChannelType, ChannelName, Spec, Data, Config)
     end.
+
+%% Note: This function goes around the channel and actor name registry and reads
+%% directly from the database. Useful when debugging or when the bussiness logic
+%% allows you to read a possibly old value.
+dirty_db_val({ActorType, ActorName}) ->
+    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf}
+        = wes_config:actor(ActorType),
+    Key = ActorCb:key(ActorName),
+    DbMod:read(Key, DbConf).
 
 name(#actor{name = Name}) -> Name.
 
