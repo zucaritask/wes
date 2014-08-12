@@ -8,10 +8,10 @@
          save/1,
          act/2,
          name/1,
-         code_change/3
-         ]).
+         code_change/3]).
 
--export([dirty_db_val/1]).
+-export([dirty_db_val/1,
+         dirty_db_vals/2]).
 
 -export([list_add/3,
          list_get/2,
@@ -75,6 +75,12 @@ dirty_db_val({ActorType, ActorName}) ->
         = wes_config:actor(ActorType),
     Key = ActorCb:key(ActorName),
     DbMod:read(Key, DbConf).
+
+dirty_db_vals(ActorType, ActorNames) when is_list(ActorNames) ->
+    #actor_config{db_mod = DbMod, cb_mod = ActorCb, db_conf = DbConf}
+        = wes_config:actor(ActorType),
+    Keys = [ ActorCb:key(ActorName) || ActorName <- ActorNames ],
+    DbMod:multi_read(Keys, DbConf).
 
 name(#actor{name = Name}) -> Name.
 
