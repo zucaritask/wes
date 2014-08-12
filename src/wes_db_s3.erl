@@ -6,6 +6,7 @@
          stop/1]).
 
 -export([read/2,
+         multi_read/2,
          write/3]).
 
 start(Conf) ->
@@ -33,6 +34,9 @@ read(Key, Config) ->
         {ok, Result} ->
             {ok, Result}
     end.
+
+multi_read(Keys, Config) ->
+    [ read(Key, Config) || Key <- Keys ].
 
 write(Key, Value, Config) ->
     Bucket = bucket(Config),

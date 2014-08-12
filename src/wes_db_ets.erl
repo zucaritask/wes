@@ -11,6 +11,7 @@
 
 %% wes db callback interface.
 -export([read/2,
+         multi_read/2,
          write/3,
          clear/0]).
 
@@ -49,6 +50,9 @@ read(Key, _) ->
         [] ->
             not_found
     end.
+
+multi_read(Keys, Config) ->
+    [ read(Key, Config) || Key <- Keys ].
 
 write(Key, Value, _) ->
     ets:insert(?MODULE, {Key, Value}),
