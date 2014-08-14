@@ -67,10 +67,10 @@ register_name(Id, Pid) ->
     end.
 
 lock_lease_duration() ->
-    application:get_env(wes, locker_lease_duration, 1000 * 60 * 5).
+    application_get_env(wes, locker_lease_duration, 1000 * 60 * 5).
 
 lock_renew_duration() ->
-    application:get_env(wes, locker_renew_duration, 1000 * 60 * 2).
+    application_get_env(wes, locker_renew_duration, 1000 * 60 * 2).
 
 register_actor(Id, ChannelType, ChannelName) ->
     case locker:lock({actor, Id}, {ChannelType, ChannelName},
@@ -99,3 +99,10 @@ actor_timeout(Name, ChannelType, ChannelName) ->
 
 channel_timeout(Channel) ->
     ok = locker:extend_lease({channel, Channel}, self(), lock_lease_duration()).
+
+%% @doc: for backwards compat to R15 that has no application:get_env/3 yet
+application_get_env(App, Par, Default) ->
+    case application:get_env(App, Par) of
+        {ok, Val} -> Val;
+        undefined -> Default
+    end.
