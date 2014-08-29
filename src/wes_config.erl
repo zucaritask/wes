@@ -6,6 +6,7 @@
 
 %% API
 -export([start_link/2,
+         update/2,
          actor/1,
          channel/1]).
 
@@ -24,6 +25,9 @@
 
 start_link(Actors, Channels) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [Actors, Channels], []).
+
+update(Actors, Channels) ->
+    gen_server:call(?SERVER, {update, Actors, Channels}).
 
 actor(Type) ->
     case ets:lookup(?TABLE, {actor, Type}) of
@@ -44,13 +48,12 @@ channel(Type) ->
 init([Actors, Channels]) ->
     Tab = ets:new(?TABLE, [named_table, protected,
                            {read_concurrency, true}]),
-    _ = [ok = init_actor(Actor) || Actor <- Actors],
-    _ = [ok = init_channel(Channel) || Channel <- Channels],
+    set_config(Actors, Channels),
     {ok, #state{tab = Tab}}.
 
-handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+handle_call({update, Actors, Channels}, _From, State) ->
+    set_config(Actors, Channels),
+    {reply, ok, State}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -68,7 +71,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-init_actor(Actor) ->
+set_config(Actors, Channels) ->
+    _ = [ok = set_actor_config(Actor) || Actor <- Actors],
+    _ = [ok = set_channel_config(Channel) || Channel <- Channels],
+    ok.
+
+set_actor_config(Actor) ->
     Key = proplists:get_value(id, Actor),
     Config = #actor_config{
                 lock_mod = proplists:get_value(lock_mod, Actor),
@@ -79,7 +87,7 @@ init_actor(Actor) ->
     ets:insert(?TABLE, {{actor, Key}, Config}),
     ok.
 
-init_channel(Channel) ->
+set_channel_config(Channel) ->
     Key = proplists:get_value(id, Channel),
     Config = #channel_config{
                 lock_mod = proplists:get_value(lock_mod, Channel),
