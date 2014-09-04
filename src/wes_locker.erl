@@ -54,8 +54,7 @@ whereis_name(Id) ->
     end.
 
 unregister_name(Id) ->
-    %% Assumed called from user process.
-    {ok, _, _, _} = locker:release({channel, Id}, self()),
+    locker:release({channel, Id}, self()),
     ok.
 
 register_name(Id, Pid) ->
