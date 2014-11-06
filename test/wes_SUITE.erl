@@ -331,12 +331,22 @@ test_bad_command() -> [].
 test_bad_command(_Config) ->
     Channel = {session, hej4},
     Actor = {counter, act4},
-    Specs = [{create, Actor, []}],
-    {ok, _Pid} = wes:create_channel(Channel, Specs),
+    {ok, _} = wes:create_channel(Channel, [{create, Actor, []}]),
     [{Actor, ok}] = wes:command(Channel, incr),
-    ?assertEqual({error, {negative_increment, -1}},
-                 wes:command(Channel, incr, -1)),
-    ?assertMatch({error, not_found}, wes:status(Channel)).
+    FirstException = {negative_increment, -1},
+    ?assertThrow(FirstException, wes:command(Channel, incr, -1)),
+    ?assertMatch({error, not_found}, wes:status(Channel)),
+    {ok, _} = wes:ensure_channel(Channel, [{create, Actor, []}]),
+    [{Actor, ok}] = wes:command(Channel, incr),
+    SecondExeption = {not_a_number, a},
+    ?assertError(SecondExeption, wes:command(Channel, incr, a)),
+    ?assertMatch({error, not_found}, wes:status(Channel)),
+    ?assertMatch([{{command, incr}, 4},
+                  {{start, actor}, 2},
+                  {{start, channel}, 2},
+                  {{stop, {exception, error, SecondExeption, _}}, 1},
+                  {{stop, {exception, throw, FirstException, _}}, 1}],
+                 wes_stats_ets:all_stats()).
 
 test_two_actors() -> [].
 

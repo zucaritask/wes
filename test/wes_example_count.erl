@@ -24,10 +24,12 @@ command(_StateName, stop, ActorState) ->
 
 command(_StateName, incr, 0, ActorState) ->
     {stop, ActorState};
-command(_StateName, incr, Nr, ActorState) when Nr > 0 ->
+command(_StateName, incr, Nr, ActorState) when is_integer(Nr), Nr > 0 ->
     {ok, ActorState + Nr};
+command(_StateName, incr, Nr, _ActorState) when is_integer(Nr), Nr < 0 ->
+    throw({negative_increment, Nr});
 command(_StateName, incr, Nr, _ActorState) ->
-    throw({negative_increment, Nr}).
+    error({not_a_number, Nr}).
 
 key(Actorname) ->
     <<"example_counter", (atom_to_binary(Actorname, utf8))/binary>>.
