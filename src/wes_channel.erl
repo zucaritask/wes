@@ -70,7 +70,13 @@ ensure_actors({ChannelType, ChannelName}, Specs) ->
 
 call(ChannelName, ChannelLockerMod, Payload) ->
     try
-        gen_server:call(channel_name(ChannelName, ChannelLockerMod), Payload)
+        Channel = channel_name(ChannelName, ChannelLockerMod),
+        case gen_server:call(Channel, Payload) of
+            {'$wes_user_exception', Class, Reason, Stacktrace} ->
+                erlang:raise(Class, Reason, Stacktrace);
+            Reply ->
+                Reply
+        end
     catch exit:{noproc, _} ->
             erlang:error(channel_not_started)
     end.
@@ -123,8 +129,10 @@ handle_call({command, Cmd, ChannelConfig}, _From, State) ->
                 timeout_reply(
                     {reply, Responses, State2#channel{actors = NewActors}})
         end
-    catch throw:Reason ->
-            {stop, normal, {error, Reason}, State}
+    catch Class:Reason ->
+        ST = erlang:get_stacktrace(),
+        Reply = {'$wes_user_exception', Class, Reason, ST},
+        {stop, {exception, Class, Reason, ST}, Reply, State}
     after
         StatsMod:stat(command, cmd_name(Cmd))
     end;
@@ -312,11 +320,12 @@ channel__init_cleanup(Name, ChannelType, ChannelConfig, Actors) ->
 channel__stop(Reason, ChannelConfig, State) ->
     #channel{type = ChannelType, name = Name, actors = Actors} = State,
     #channel_config{stats_mod = StatsMod} = ChannelConfig,
-    if Reason =:= normal ->
+    case Reason of
+        normal ->
             StatsMod:stat(stop, normal),
             lists:foreach(fun(A0) -> wes_actor:save(A0) end, Actors);
-       true ->
-            StatsMod:stat(stop, error)
+        Other ->
+            StatsMod:stat(stop, Other)
     end,
     lists:foreach(
       fun(A0) -> wes_actor:deregister_name(A0, ChannelType, Name) end,

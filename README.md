@@ -41,6 +41,19 @@ Commands are broadcasted to all actors that are listening to the channel.
 Reads are sent to the actor that it is aimed for.
 A channel manages the timeouts for itself and for the actors connected to it.
 
+#### Error Handling
+
+Any exception that occurs inside a channel will shut the channel down without
+saving the actors. When resuming, the channel will have the latest persistent
+state of the actors, allowing you to resume from a known state.
+
+If the exception occurred in a command to the channel, the same exception will
+be raised from the call to `wes:command/2` or `wes:command/3`.
+
+The stats module will also get a `stop` event with an
+`{exception, Class, Reason, Stacktrace}` argument so that individual error
+statistics can be tracked.
+
 ### Actors
 This is where the game logic lives.
 An actors is offline (persisted) or listens to one channel.
